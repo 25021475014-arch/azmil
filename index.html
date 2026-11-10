@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bengkel Prosedur: Permainan Kata Aksi dan Konjungsi (Copy)</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#DDEFFF; --surface:#FFFFFF; --surface-2:#EEF6FF;
+  --ink:#14213D; --muted:#4A5A7A; --line:#14213D; --shadow:#14213D;
+  --aksi:#FF7A59; --on-aksi:#14213D; --aksi-soft:#FFE3DA;
+  --konj:#1F5FE0; --on-konj:#FFFFFF; --konj-soft:#DCE8FF;
+  --sun:#FFD23F; --on-sun:#14213D;
+  --ok:#1FA971; --ok-soft:#D3F5E5;
+  --bad:#E23D5A; --bad-soft:#FFDDE3;
+  --focus:#7A3CFF;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1730; --surface:#1A2547; --surface-2:#223059;
+    --ink:#F1F5FF; --muted:#A9B6D6; --line:#9FB2E8; --shadow:#050B1F;
+    --aksi:#FF8C6E; --on-aksi:#1A0F0A; --aksi-soft:#4A2A22;
+    --konj:#8DB8FF; --on-konj:#0B1533; --konj-soft:#1F3364;
+    --sun:#FFD23F; --on-sun:#14213D;
+    --ok:#3DD69A; --ok-soft:#12382D;
+    --bad:#FF6B85; --bad-soft:#43202B;
+    --focus:#FFD23F;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1730; --surface:#1A2547; --surface-2:#223059;
+  --ink:#F1F5FF; --muted:#A9B6D6; --line:#9FB2E8; --shadow:#050B1F;
+  --aksi:#FF8C6E; --on-aksi:#1A0F0A; --aksi-soft:#4A2A22;
+  --konj:#8DB8FF; --on-konj:#0B1533; --konj-soft:#1F3364;
+  --sun:#FFD23F; --on-sun:#14213D;
+  --ok:#3DD69A; --ok-soft:#12382D;
+  --bad:#FF6B85; --bad-soft:#43202B;
+  --focus:#FFD23F;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:'Nunito',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  font-weight:600;font-size:17px;line-height:1.55;
+}
+h1,h2,h3{font-family:'Baloo 2','Nunito',system-ui,sans-serif;line-height:1.1;margin:0 0 .4em;font-weight:800}
+p{margin:0 0 .7em}
+.wrap{max-width:900px;margin:0 auto;padding:14px 16px 48px}
+:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+#stage:focus{outline:none}
+
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.brand{font:800 1.35rem/1 'Baloo 2','Nunito',sans-serif;color:var(--ink);background:none;border:0;padding:8px 4px;cursor:pointer}
+.pts{font:800 1rem 'Baloo 2','Nunito',sans-serif;background:var(--sun);color:var(--on-sun);border:3px solid var(--line);border-radius:12px;padding:2px 12px;box-shadow:0 3px 0 var(--shadow)}
+
+/* buttons */
+.btn{
+  font-family:'Baloo 2','Nunito',sans-serif;font-weight:700;font-size:1.05rem;color:var(--ink);
+  background:var(--surface);border:3px solid var(--line);border-radius:14px;
+  padding:.4em 1.1em;min-height:48px;box-shadow:0 4px 0 var(--shadow);cursor:pointer;
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+.btn.primary{background:var(--sun);color:var(--on-sun)}
+.btn.small{min-height:40px;padding:.15em .8em;font-size:.95rem}
+.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
+
+/* chips */
+.chip{display:inline-block;padding:0 .45em;border-radius:10px;border:2.5px solid var(--line);font-weight:800;line-height:1.5}
+.chip.aksi{background:var(--aksi);color:var(--on-aksi)}
+.chip.konj{background:var(--konj);color:var(--on-konj)}
+
+/* hero */
+.hero{display:grid;gap:28px;align-items:center;margin:6px 0 40px}
+@media (min-width:760px){.hero{grid-template-columns:1.05fr 1fr}}
+.hero h1{font-size:clamp(2.3rem,7vw,3.4rem);letter-spacing:-.01em}
+.lead{font-size:1.15rem;color:var(--muted);max-width:32ch}
+.rank{background:var(--surface);border:3px solid var(--line);border-radius:16px;padding:12px 14px;margin:16px 0 18px;box-shadow:0 4px 0 var(--shadow)}
+.rank strong{font-family:'Baloo 2',sans-serif;font-size:1.1rem}
+.meter{height:14px;border:3px solid var(--line);border-radius:99px;background:var(--surface-2);overflow:hidden;margin:6px 0}
+.meter i{display:block;height:100%;background:var(--sun);border-right:3px solid var(--line)}
+.meter i[style*="width: 0"]{border-right:0}
+.small{font-size:.9rem;color:var(--muted);margin:0}
+
+.recipe{
+  background:var(--surface);border:3px solid var(--line);border-radius:18px;
+  padding:0 20px 18px;box-shadow:8px 8px 0 var(--shadow);transform:rotate(-1.5deg);
+  overflow:hidden;
+}
+.recipe .strip{background:var(--sun);border-bottom:3px solid var(--line);margin:0 -20px 14px;padding:10px 20px}
+.recipe h2{margin:0;font-size:1.35rem;color:var(--on-sun)}
+.rline{font-size:1.12rem;line-height:2.15;margin:0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:14px;padding-top:12px;border-top:3px dashed var(--line);font-size:.95rem}
+
+/* games grid */
+.section-title{font-size:1.7rem;margin:0 0 14px}
+.games{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:44px}
+.gcard{background:var(--surface);border:3px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 6px 0 var(--shadow);display:flex;flex-direction:column}
+.gcard h3{font-size:1.35rem;margin:10px 0 4px}
+.gcard p{color:var(--muted)}
+.gcard .btn{margin-top:auto;align-self:flex-start}
+.gicon{width:52px;height:52px;border:3px solid var(--line);border-radius:14px;display:grid;place-items:center;font-size:1.6rem}
+.gicon.aksi{background:var(--aksi)}
+.gicon.konj{background:var(--konj)}
+.gicon.sun{background:var(--sun)}
+.gicon.ok{background:var(--ok)}
+
+/* notes */
+.notes details{background:var(--surface);border:3px solid var(--line);border-radius:16px;padding:12px 16px;margin-bottom:12px}
+.notes summary{font:700 1.15rem 'Baloo 2','Nunito',sans-serif;cursor:pointer}
+.notes details p{margin:.7em 0 .3em}
+.notes .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+footer{margin-top:36px;color:var(--muted);font-size:.9rem}
+
+
+/* akun guru dan siswa */
+.auth-card,.teacher-panel{background:var(--surface);border:3px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 6px 0 var(--shadow);margin:18px 0}
+.auth-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.field{display:grid;gap:6px;margin:12px 0}
+.field input,.field select{font:inherit;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);width:100%}
+.notice{padding:12px;border-radius:12px;background:var(--surface-2);margin:10px 0}
+.table-wrap{overflow-x:auto}
+.score-table{width:100%;border-collapse:collapse;background:var(--surface)}
+.score-table th,.score-table td{padding:9px;border:1px solid var(--line);text-align:left}
+.score-table th{background:var(--surface-2)}
+/* game screens */
+.hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:10px}
+.hud-title{font-size:1.4rem;margin:0;flex:1 1 auto}
+.stats{display:flex;gap:8px;flex-wrap:wrap;font-weight:800;font-size:.95rem}
+.stats span{background:var(--surface);border:2.5px solid var(--line);border-radius:10px;padding:0 10px}
+.stats .hot{background:var(--sun);color:var(--on-sun)}
+.progress{height:14px;border:3px solid var(--line);border-radius:99px;background:var(--surface);overflow:hidden;margin-bottom:18px}
+.progress i{display:block;height:100%;background:var(--konj);transition:width .25s}
+.play{background:var(--surface);border:3px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 6px 0 var(--shadow)}
+.prompt{color:var(--muted);margin-bottom:.5em}
+.sentence{font-family:'Baloo 2','Nunito',sans-serif;font-weight:700;font-size:clamp(1.35rem,4.2vw,1.9rem);line-height:2.2;margin:.2em 0 .6em}
+.tok{
+  font:inherit;color:var(--ink);background:var(--surface-2);border:3px solid var(--line);
+  border-radius:12px;padding:0 .4em;margin:0 .05em;cursor:pointer;line-height:1.6;
+}
+.tok:hover{background:var(--sun);color:var(--on-sun)}
+.play.done .tok{cursor:default}
+.play.done .tok:hover{background:var(--surface-2);color:var(--ink)}
+.tok.konj,.play.done .tok.konj:hover{background:var(--konj);color:var(--on-konj)}
+.tok.aksi,.play.done .tok.aksi:hover{background:var(--aksi);color:var(--on-aksi)}
+.tok.wrong{background:var(--bad-soft)!important;color:var(--ink)!important}
+.tok.picked{box-shadow:0 0 0 4px var(--bad)}
+
+.fb{margin-top:16px;border-radius:16px}
+.fb.ok,.fb.bad{border:3px solid var(--line);padding:14px 16px}
+.fb.ok{background:var(--ok-soft)}
+.fb.bad{background:var(--bad-soft)}
+.fb .btn{margin-top:4px}
+.pop{animation:pop .22s ease-out}
+@keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:none;opacity:1}}
+
+.pline{font-family:'Baloo 2','Nunito',sans-serif;font-weight:600;font-size:clamp(1.15rem,3.6vw,1.4rem);line-height:1.9;margin:0 0 .35em}
+.slot{display:inline-block;min-width:6.2em;text-align:center;border-bottom:4px solid var(--line);margin:0 .15em;padding:0 .3em;color:var(--muted)}
+.slot.filled{background:var(--konj);color:var(--on-konj);border:2.5px solid var(--line);border-radius:10px;font-weight:800}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.opt.ok{background:var(--ok);color:#06251A}
+.opt.bad{background:var(--bad);color:#fff}
+.opt.dim{opacity:.5}
+
+.panel-title{font-size:1.1rem;margin:16px 0 8px}
+.pool,.anslist{display:grid;gap:10px}
+.step{
+  font:inherit;font-weight:600;text-align:left;color:var(--ink);background:var(--surface-2);
+  border:3px solid var(--line);border-radius:14px;padding:8px 12px;cursor:pointer;line-height:1.9;width:100%;
+}
+.step:hover{background:var(--sun);color:var(--on-sun)}
+.step.ok{background:var(--ok-soft)}
+.step.bad{background:var(--bad-soft)}
+.arow{display:flex;align-items:center;gap:10px}
+.arow .step{flex:1}
+.num{flex:none;width:36px;height:36px;border-radius:50%;border:3px solid var(--line);background:var(--sun);color:var(--on-sun);display:grid;place-items:center;font:800 1rem 'Baloo 2',sans-serif}
+.empty{color:var(--muted);border:3px dashed var(--line);border-radius:14px;padding:14px;margin:0;text-align:center}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
+.correct{margin:.5em 0 .8em;padding-left:1.3em}
+.correct li{margin-bottom:.2em}
+
+.flash{
+  font-family:'Baloo 2','Nunito',sans-serif;font-weight:800;text-align:center;
+  font-size:clamp(2.4rem,11vw,4.2rem);line-height:1.1;padding:26px 8px;margin:6px 0 12px;
+  background:var(--surface-2);border:3px solid var(--line);border-radius:18px;
+}
+.timer{height:16px;border:3px solid var(--line);border-radius:99px;background:var(--surface);overflow:hidden;margin-bottom:16px}
+.timer i{display:block;height:100%;width:100%;background:var(--ok)}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.choices .btn.aksi{background:var(--aksi);color:var(--on-aksi)}
+.choices .btn.konj{background:var(--konj);color:var(--on-konj)}
+
+.result{background:var(--surface);border:3px solid var(--line);border-radius:22px;padding:26px 20px;text-align:center;box-shadow:0 6px 0 var(--shadow)}
+.result h2{font-size:2.2rem}
+.stars{font-size:3rem;letter-spacing:.1em;color:var(--sun);-webkit-text-stroke:2px var(--line);line-height:1.2}
+.big{font:800 1.5rem 'Baloo 2',sans-serif}
+.badge{display:inline-block;background:var(--ok);color:#06251A;border:3px solid var(--line);border-radius:12px;padding:0 12px;font-weight:800}
+.result .actions{justify-content:center}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <button class="brand" id="brand" type="button">🛠️ Bengkel Prosedur</button>
+    <div class="pts" id="pts" aria-live="polite">Poin 0</div>
+  </header>
+  <main id="stage" tabindex="-1"></main>
+  <footer>Materi teks prosedur untuk siswa SMP kelas 7: kata aksi dan konjungsi.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+'use strict';
+
+/* ---------- utilitas ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+function h(tag, props, ...kids){
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(props || {})){
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'w') e.style.width = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (v === true) e.setAttribute(k, '');
+    else e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()){
+    if (kid == null || kid === false) continue;
+    e.append(kid.nodeType ? kid : document.createTextNode(kid));
+  }
+  return e;
+}
+const shuffle = a => { a = a.slice(); for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const pick = (a,n) => shuffle(a).slice(0,n);
+const norm = w => w.toLowerCase().replace(/[^\p{L}-]/gu,'');
+const cap = w => w.charAt(0).toUpperCase() + w.slice(1);
+const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- koneksi Supabase ---------- */
+const SUPABASE_URL = 'https://xpnbpiqfmnvxwnhjbytn.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_AM8BZJyyRnK2C2KLvlcxTw_8Jp_0n_f';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+let currentUser = null, best = {};
+function loadBestFromRows(rows){
+  best = {};
+  for (const g of GAMES) best[g.id] = 0;
+  (rows || []).forEach(row => {
+    if (row.game_id in best) best[row.game_id] = Math.max(best[row.game_id], Number(row.best_score || 0));
+  });
+}
+async function loadBest(){
+  if (!currentUser || currentUser.role !== 'student') { best = {}; return; }
+  const {data,error} = await supabase.from('bengkel_game_scores')
+    .select('game_id,best_score').eq('student_id', currentUser.id);
+  if (error) { console.error(error); alert('Nilai belum dapat dimuat dari server: ' + error.message); }
+  loadBestFromRows(data || []);
+}
+async function saveBest(){
+  if (!currentUser || currentUser.role !== 'student') return;
+  const rows = GAMES.map(g => ({
+    student_id: currentUser.id,
+    game_id: g.id,
+    best_score: Math.max(0, Math.min(100, Number(best[g.id] || 0))),
+    last_played_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }));
+  const {error} = await supabase.from('bengkel_game_scores')
+    .upsert(rows, {onConflict:'student_id,game_id'});
+  if (error) { console.error(error); alert('Nilai belum berhasil disimpan ke server: ' + error.message); }
+}
+/* ---------- data ---------- */
+const AKSI = [
+  {k:'Pertama,',      b:'cuci kedua tangan dengan sabun.',            v:'cuci'},
+  {k:'Kemudian,',     b:'iris bawang merah tipis-tipis.',             v:'iris'},
+  {k:'Selanjutnya,',  b:'tuangkan air panas ke dalam gelas.',         v:'tuangkan'},
+  {k:'Setelah itu,',  b:'aduk adonan dengan sendok kayu.',            v:'aduk'},
+  {k:'',              b:'Colokkan kabel charger ke stopkontak.',      v:'colokkan'},
+  {k:'Lalu,',         b:'tekan tombol daya selama tiga detik.',       v:'tekan'},
+  {k:'Kemudian,',     b:'lipat kertas origami di bagian tengah.',     v:'lipat'},
+  {k:'Pertama,',      b:'tanam bibit cabai di dalam pot.',            v:'tanam'},
+  {k:'Terakhir,',     b:'bilas piring dengan air bersih.',            v:'bilas'},
+  {k:'Setelah itu,',  b:'tempelkan kertas warna pada karton.',        v:'tempelkan'},
+  {k:'Pertama,',      b:'panaskan minyak di atas wajan.',             v:'panaskan'},
+  {k:'',              b:'Buka aplikasi pesan di ponselmu.',           v:'buka'}
+];
+
+const KONJ = [
+  {lines:['___, siapkan gelas dan sendok.','Kemudian, tuangkan air panas ke dalam gelas.','Selanjutnya, masukkan teh celup.'],
+   ans:'Pertama', opts:['Pertama','Terakhir','Akhirnya','Sementara itu'],
+   why:'Langkah yang membuka prosedur diawali konjungsi Pertama (atau Mula-mula).'},
+  {lines:['Pertama, cuci kedua tangan dengan sabun.','Kemudian, bilas dengan air mengalir.','___, keringkan tangan dengan handuk bersih.'],
+   ans:'Terakhir', opts:['Terakhir','Pertama','Mula-mula','Sebelum itu'],
+   why:'Langkah penutup memakai Terakhir (atau Akhirnya). Pertama dan Mula-mula hanya untuk langkah awal.'},
+  {lines:['Pertama, panaskan minyak di atas wajan.','___, masukkan bawang putih yang sudah dicincang.','Terakhir, tambahkan nasi dan aduk rata.'],
+   ans:'Kemudian', opts:['Kemudian','Akhirnya','Mula-mula','Sebelum itu'],
+   why:'Kemudian dipakai untuk langkah di tengah. Akhirnya menutup prosedur, sedangkan Mula-mula membuka prosedur.'},
+  {lines:['Rebus mi selama tiga menit.','___, panaskan minyak di wajan untuk menumis sayur.'],
+   ans:'Sementara itu', opts:['Sementara itu','Akhirnya','Pertama','Mula-mula'],
+   why:'Sementara itu menghubungkan dua kegiatan yang dilakukan pada saat bersamaan.'},
+  {lines:['___ menyalakan kompor, pastikan tabung gas terpasang dengan benar.'],
+   ans:'Sebelum', opts:['Sebelum','Sesudah','Akhirnya','Pertama'],
+   why:'Sebelum menunjukkan kegiatan yang harus dilakukan lebih dahulu daripada kegiatan berikutnya.'},
+  {lines:['___ air mendidih, matikan kompor.'],
+   ans:'Setelah', opts:['Setelah','Sebelum','Pertama','Sementara itu'],
+   why:'Setelah menunjukkan kegiatan yang dilakukan sesudah suatu keadaan tercapai, yaitu air sudah mendidih.'},
+  {lines:['Aduk adonan ___ tercampur rata.'],
+   ans:'hingga', opts:['hingga','sebelum','akhirnya','kemudian'],
+   why:'Hingga (atau sampai) menunjukkan batas keadaan yang ingin dicapai, yaitu adonan tercampur rata.'},
+  {lines:['Pertama, ambil selembar kertas.','___, lipat kertas menjadi dua bagian.','Ketiga, buka lipatan dan tekuk sudutnya.'],
+   ans:'Kedua', opts:['Kedua','Terakhir','Akhirnya','Sebelum itu'],
+   why:'Kedua melanjutkan Pertama dan mendahului Ketiga. Penomoran langkah harus berurutan.'},
+  {lines:['Bungkus hadiah dengan kertas kado.','___, tempelkan pita di bagian atas.'],
+   ans:'Setelah itu', opts:['Setelah itu','Pertama','Mula-mula','Sebelum itu'],
+   why:'Setelah itu menghubungkan langkah dengan langkah sebelumnya: pita ditempel sesudah hadiah dibungkus.'},
+  {lines:['Pertama, kocok dua butir telur dalam mangkuk.','___ tuang telur ke dalam wajan panas.','Terakhir, angkat dan sajikan.'],
+   ans:'Lalu', opts:['Lalu','Mula-mula','Sebelum itu','Pertama'],
+   why:'Lalu menyambung langkah di tengah dan bermakna “sesudah itu”.'}
+];
+
+const PROCS = [
+  {title:'Cara membuat teh manis hangat', steps:[
+    {k:'Pertama,',     b:'siapkan gelas dan satu kantong teh celup.'},
+    {k:'Kemudian,',    b:'tuangkan air panas ke dalam gelas.'},
+    {k:'Setelah itu,', b:'tambahkan satu sendok gula ke dalam teh.'},
+    {k:'Selanjutnya,', b:'aduk minuman sampai gula larut.'},
+    {k:'Terakhir,',    b:'angkat kantong teh dan sajikan.'}]},
+  {title:'Cara mencuci tangan yang benar', steps:[
+    {k:'Pertama,',     b:'basahi kedua tangan dengan air mengalir.'},
+    {k:'Kemudian,',    b:'tuangkan sedikit sabun ke telapak tangan.'},
+    {k:'Selanjutnya,', b:'gosok tangan yang sudah bersabun selama 20 detik.'},
+    {k:'Setelah itu,', b:'bilas tangan sampai busa sabun hilang.'},
+    {k:'Terakhir,',    b:'keringkan tangan dengan handuk bersih.'}]},
+  {title:'Cara menanam biji cabai di pot', steps:[
+    {k:'Pertama,',     b:'isi pot dengan tanah gembur.'},
+    {k:'Kemudian,',    b:'buat lubang kecil di tengah tanah.'},
+    {k:'Lalu,',        b:'masukkan tiga biji cabai ke dalam lubang.'},
+    {k:'Setelah itu,', b:'tutup lubang dengan sedikit tanah.'},
+    {k:'Terakhir,',    b:'siram tanah dengan air secukupnya.'}]},
+  {title:'Cara mengirim pesan lewat ponsel', steps:[
+    {k:'Pertama,',     b:'buka aplikasi pesan di ponselmu.'},
+    {k:'Kemudian,',    b:'pilih nama temanmu dari daftar kontak.'},
+    {k:'Selanjutnya,', b:'ketik pesan pada kolom teks di percakapan tersebut.'},
+    {k:'Setelah itu,', b:'tekan tombol kirim.'},
+    {k:'Terakhir,',    b:'pastikan pesan sudah terkirim.'}]},
+  {title:'Cara membuat es jeruk', steps:[
+    {k:'Pertama,',     b:'peras dua buah jeruk ke dalam gelas.'},
+    {k:'Kemudian,',    b:'tambahkan air matang dan gula secukupnya.'},
+    {k:'Selanjutnya,', b:'aduk minuman sampai gula larut.'},
+    {k:'Setelah itu,', b:'masukkan beberapa batu es ke dalam minuman yang sudah diaduk.'},
+    {k:'Terakhir,',    b:'hias gelas dengan irisan jeruk.'}]}
+];
+
+const KA = ['Aduk','Potong','Tuangkan','Panaskan','Tekan','Lipat','Masukkan','Bilas','Tempelkan','Kocok','Cuci','Iris'];
+const KJ = ['Pertama','Kemudian','Terakhir','Selanjutnya','Setelah itu','Sementara itu','Lalu','Sebelum','Hingga','Akhirnya','Kedua','Sesudah itu'];
+const KB = ['Wajan','Sendok','Hangat','Bawang','Piring','Lambat','Dapur','Gelas','Sabun','Panci','Segar','Meja'];
+const LABEL = {
+  aksi:'kata aksi, kata yang menyatakan tindakan',
+  konj:'konjungsi, penanda urutan langkah',
+  bukan:'bukan kata aksi dan bukan konjungsi (benda atau sifat)'
+};
+
+const bonus = n => Math.max(0, n-2) * 5;
+const GAMES = [
+  {id:'aksi',  icon:'🎯', color:'aksi', title:'Tangkap Kata Aksi', desc:'Ketuk kata kerja yang menjadi perintah di setiap kalimat.', meta:'8 soal', max:100, start:playAksi},
+  {id:'konj',  icon:'🔗', color:'konj', title:'Isi Konjungsi',     desc:'Pilih kata penghubung yang tepat untuk melengkapi langkah.', meta:'8 soal', max:100, start:playKonj},
+  {id:'susun', icon:'🧩', color:'sun',  title:'Susun Langkah',     desc:'Urutkan kartu langkah dengan petunjuk konjungsi.', meta:'3 prosedur', max:100, start:playSusun},
+  {id:'kilat', icon:'⚡', color:'ok',   title:'Kilat Kata',        desc:'Tebak cepat: kata aksi, konjungsi, atau bukan keduanya.', meta:'12 kata, 7 detik per kata', max:100, start:playKilat}
+];
+const gameById = id => GAMES.find(g => g.id === id);
+
+/* ---------- state umum ---------- */
+const stage = $('#stage');
+let timer = null, adv = null;
+function clearTimers(){ if (timer){ clearInterval(timer); timer = null; } if (adv){ clearTimeout(adv); adv = null; } }
+function totals(){
+  const t = GAMES.reduce((s,g) => s + Math.min(best[g.id] || 0, 100), 0);
+  const m = GAMES.length * 100;
+  return {t, m};
+}
+function rankName(r){
+  return r === 0 ? 'Calon juru prosedur' : r < .25 ? 'Pemula bengkel' : r < .5 ? 'Tukang handal' : r < .75 ? 'Ahli prosedur' : 'Master teks prosedur';
+}
+function updatePts(){ $('#pts').textContent = 'Poin ' + totals().t + ' / ' + totals().m; }
+function go(fn){
+  clearTimers();
+  stage.replaceChildren();
+  fn();
+  updatePts();
+  window.scrollTo(0,0);
+  stage.focus({preventScroll:true});
+}
+$('#brand').addEventListener('click', () => go(renderHome));
+
+/* ---------- beranda ---------- */
+function recipeCard(){
+  const K = t => h('span',{class:'chip konj'}, t);
+  const A = t => h('span',{class:'chip aksi'}, t);
+  const line = (...p) => h('p',{class:'rline'}, ...p);
+  return h('div',{class:'recipe','role':'img','aria-label':'Contoh teks prosedur: konjungsi diberi warna biru, kata aksi diberi warna jingga.'},
+    h('div',{class:'strip'}, h('h2',{}, 'Cara membuat es teh')),
+    line(K('Pertama,'),' ',A('siapkan'),' gelas, es batu, dan gula.'),
+    line(K('Kemudian,'),' ',A('tuangkan'),' teh dingin ke dalam gelas.'),
+    line(K('Terakhir,'),' ',A('aduk'),' ',K('hingga'),' gula larut.'),
+    h('div',{class:'legend'},
+      h('span',{}, K('Konjungsi'), ' penanda urutan'),
+      h('span',{}, A('Kata aksi'), ' tindakan yang dilakukan'))
+  );
+}
+
+
+function renderLogin(){
+  const student = h('section',{class:'auth-card'},
+    h('h2',{},'👩‍🎓 Akun Siswa'),
+    h('p',{},'Masuk dengan email dan kata sandi, atau buat akun baru.'),
+    h('div',{class:'field'},h('label',{},'Email siswa'),h('input',{id:'student-email',type:'email',autocomplete:'email',placeholder:'nama@email.com'})),
+    h('div',{class:'field'},h('label',{},'Nama lengkap'),h('input',{id:'student-name',placeholder:'Nama siswa'})),
+    h('div',{class:'field'},h('label',{},'Kelas'),h('input',{id:'student-class',placeholder:'Contoh: VII A'})),
+    h('div',{class:'field'},h('label',{},'Kata sandi'),h('input',{id:'student-pass',type:'password',autocomplete:'current-password',placeholder:'Minimal 6 karakter'})),
+    h('div',{class:'actions'},
+      h('button',{class:'btn primary',type:'button',onClick:()=>studentLogin(false)},'Masuk'),
+      h('button',{class:'btn',type:'button',onClick:()=>studentLogin(true)},'Daftar akun siswa')),
+    h('p',{class:'small'},'Akun dan nilai siswa tersimpan secara daring di Supabase. Gunakan email yang aktif untuk pendaftaran.')
+  );
+  const teacher = h('section',{class:'auth-card'},
+    h('h2',{},'👩‍🏫 Akun Guru'),
+    h('p',{},'Masuk menggunakan akun guru yang telah dibuat di Supabase.'),
+    h('div',{class:'field'},h('label',{},'Email guru'),h('input',{id:'teacher-email',type:'email',value:'25021475014@mhs.unesa.ac.id',autocomplete:'username'})),
+    h('div',{class:'field'},h('label',{},'Kata sandi'),h('input',{id:'teacher-pass',type:'password',autocomplete:'current-password',placeholder:'Kata sandi akun Supabase'})),
+    h('button',{class:'btn primary',type:'button',onClick:teacherLogin},'Masuk sebagai guru'),
+    h('p',{class:'small'},'Gunakan kata sandi yang Anda buat sendiri saat membuat akun guru di Supabase.')
+  );
+  stage.replaceChildren(
+    h('section',{class:'hero'},h('div',{},h('h1',{},'🛠️ Bengkel Prosedur'),h('p',{class:'lead'},'Media permainan kata aksi dan konjungsi. Silakan masuk sesuai peran.'))),
+    h('div',{class:'auth-grid'},student,teacher)
+  );
+}
+async function studentLogin(register){
+  const email=$('#student-email').value.trim().toLowerCase();
+  const name=$('#student-name').value.trim();
+  const kelas=$('#student-class').value.trim();
+  const pass=$('#student-pass').value;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Masukkan alamat email yang valid.');return;}
+  if(pass.length<6){alert('Kata sandi minimal 6 karakter.');return;}
+  if(register){
+    if(!name||!kelas){alert('Isi nama lengkap dan kelas untuk mendaftar.');return;}
+    const {data,error}=await supabase.auth.signUp({
+      email,password:pass,
+      options:{data:{display_name:name,class_code:kelas}}
+    });
+    if(error){alert('Pendaftaran gagal: '+error.message);return;}
+    if(!data.session){alert('Pendaftaran berhasil. Periksa email untuk konfirmasi, lalu masuk setelah akun dikonfirmasi.');return;}
+    currentUser={id:data.user.id,email:data.user.email,role:'student',name,kelas};
+  }else{
+    const {data,error}=await supabase.auth.signInWithPassword({email,password:pass});
+    if(error){alert('Gagal masuk: '+error.message);return;}
+    const {data:profile,error:profileError}=await supabase.from('profiles').select('id,display_name,class_code,role').eq('id',data.user.id).single();
+    if(profileError){alert('Profil tidak dapat dimuat: '+profileError.message);return;}
+    if(profile.role!=='student'){await supabase.auth.signOut();alert('Akun ini bukan akun siswa.');return;}
+    currentUser={id:data.user.id,email:data.user.email,role:profile.role,name:profile.display_name,kelas:profile.class_code};
+  }
+  await loadBest();go(renderHome);
+}
+async function teacherLogin(){
+  const email=$('#teacher-email').value.trim().toLowerCase();
+  const pass=$('#teacher-pass').value;
+  const {data,error}=await supabase.auth.signInWithPassword({email,password:pass});
+  if(error){alert('Tidak dapat masuk: '+error.message);return;}
+  const {data:profile,error:profileError}=await supabase.from('profiles').select('id,display_name,role').eq('id',data.user.id).single();
+  if(profileError || profile.role!=='teacher'){
+    await supabase.auth.signOut();
+    alert('Akun ini belum memiliki hak akses guru. Hubungi administrator.');
+    return;
+  }
+  currentUser={id:data.user.id,email:data.user.email,role:'teacher',name:profile.display_name};
+  best={}; await renderTeacher();
+}
+async function logout(){
+  await supabase.auth.signOut();
+  currentUser=null;best={};go(renderLogin);
+}
+async function renderTeacher(){
+  const [profilesRes,scoresRes]=await Promise.all([
+    supabase.from('profiles').select('id,display_name,class_code').eq('role','student').order('display_name'),
+    supabase.from('bengkel_game_scores').select('student_id,game_id,best_score,last_played_at')
+  ]);
+  if(profilesRes.error || scoresRes.error){
+    alert('Rekap belum dapat dimuat: '+(profilesRes.error?.message || scoresRes.error?.message));
+    return;
+  }
+  const scoresByStudent={};
+  (scoresRes.data||[]).forEach(s=>{
+    scoresByStudent[s.student_id] ||= {};
+    scoresByStudent[s.student_id][s.game_id]=s;
+  });
+  const students=profilesRes.data||[];
+  const rows=students.map(u=>{
+    const scores=GAMES.map(g=>Number(scoresByStudent[u.id]?.[g.id]?.best_score||0));
+    const avg=Math.round(scores.reduce((a,b)=>a+b,0)/GAMES.length);
+    const times=GAMES.map(g=>scoresByStudent[u.id]?.[g.id]?.last_played_at).filter(Boolean).sort();
+    const last=times.length?new Date(times[times.length-1]).toLocaleString('id-ID'):'Belum bermain';
+    return h('tr',{},h('td',{},u.display_name||'-'),h('td',{},u.class_code||'-'),...scores.map(v=>h('td',{},v+'/100')),h('td',{},avg+'/100'),h('td',{},last));
+  });
+  const table=h('div',{class:'table-wrap'},h('table',{class:'score-table'},
+    h('thead',{},h('tr',{},...['Nama siswa','Kelas',...GAMES.map(g=>g.title),'Rata-rata','Terakhir bermain'].map(x=>h('th',{},x)))),
+    h('tbody',{},...(rows.length?rows:[h('tr',{},h('td',{colspan:'9'},'Belum ada data siswa.'))]))
+  ));
+  stage.replaceChildren(
+    h('div',{class:'hud'},h('h2',{class:'hud-title'},'📊 Dasbor Guru'),h('button',{class:'btn small',type:'button',onClick:logout},'Keluar')),
+    h('section',{class:'teacher-panel'},h('h2',{},'Rekap hasil permainan'),h('p',{},'Setiap permainan memiliki nilai maksimal 100. Data diambil langsung dari Supabase.'),table,
+      h('div',{class:'actions'},h('button',{class:'btn',type:'button',onClick:()=>{
+        const csv=[['Nama','Kelas',...GAMES.map(g=>g.title),'Rata-rata','Terakhir bermain'],...students.map(u=>{
+          const sc=GAMES.map(g=>Number(scoresByStudent[u.id]?.[g.id]?.best_score||0));
+          const times=GAMES.map(g=>scoresByStudent[u.id]?.[g.id]?.last_played_at).filter(Boolean).sort();
+          return [u.display_name||'',u.class_code||'',...sc,Math.round(sc.reduce((a,b)=>a+b,0)/GAMES.length),times.length?new Date(times[times.length-1]).toLocaleString('id-ID'):''];
+        })].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');
+        const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='rekap-nilai-bengkel-prosedur.csv';a.click();URL.revokeObjectURL(a.href);
+      }},'Unduh rekap CSV'))
+    ),
+    h('p',{class:'notice'},'Data akun dan nilai tersimpan daring. Guru dapat melihat rekap dari perangkat yang berbeda setelah masuk.')
+  );
+}
+
+function renderHome(){
+  const {t,m} = totals(); const r = t/m;
+  const hero = h('section',{class:'hero'},
+    h('div',{},
+      h('h1',{}, 'Susun teks prosedur yang rapi'),
+      h('p',{class:'lead'}, 'Kenali kata aksi, pasang konjungsi yang tepat, lalu urutkan langkah-langkahnya.'),
+      h('div',{class:'rank'},
+        h('strong',{}, 'Peringkat: ' + rankName(r)),
+        h('div',{class:'meter'}, h('i',{w: Math.round(r*100) + '%'})),
+        h('p',{class:'small'}, t + ' dari ' + m + ' poin')),
+      h('button',{class:'btn primary',type:'button',onClick:()=>$('#games').scrollIntoView({behavior: reduceMotion() ? 'auto' : 'smooth'})}, 'Pilih permainan')
+    ),
+    recipeCard()
+  );
+
+  const accountBar = h('p',{class:'notice'},'👤 '+(currentUser ? ((users[currentUser.username]?.name)||currentUser.username)+' · '+(users[currentUser.username]?.kelas||'Siswa') : 'Siswa')+' ',h('button',{class:'btn small',type:'button',onClick:logout},'Keluar akun'));
+
+  const grid = h('section',{id:'games'},
+    h('h2',{class:'section-title'}, 'Pilih permainan'),
+    h('div',{class:'games'}, GAMES.map(g => {
+      const b = best[g.id] || 0;
+      return h('article',{class:'gcard'},
+        h('div',{class:'gicon ' + g.color,'aria-hidden':'true'}, g.icon),
+        h('h3',{}, g.title),
+        h('p',{}, g.desc),
+        h('p',{class:'small'}, g.meta),
+        h('div',{class:'meter','aria-hidden':'true'}, h('i',{w: Math.round(Math.min(b,g.max)/g.max*100) + '%'})),
+        h('p',{class:'small'}, b ? 'Skor terbaik: ' + b + ' dari ' + g.max : 'Belum dimainkan'),
+        h('button',{class:'btn primary',type:'button',onClick:()=>go(g.start)}, b ? 'Main lagi' : 'Main')
+      );
+    }))
+  );
+
+  const K = t => h('span',{class:'chip konj'}, t);
+  const A = t => h('span',{class:'chip aksi'}, t);
+  const notes = h('section',{class:'notes'},
+    h('h2',{class:'section-title'}, 'Catatan cepat'),
+    h('details',{},
+      h('summary',{}, 'Apa itu kata aksi?'),
+      h('p',{}, 'Kata aksi adalah kata kerja yang menyatakan tindakan yang harus dilakukan pembaca. Dalam teks prosedur, kata aksi biasanya berbentuk perintah dan muncul di awal kalimat langkah.'),
+      h('div',{class:'chips'}, ['potong','aduk','tuangkan','panaskan','tekan','lipat'].map(A))),
+    h('details',{},
+      h('summary',{}, 'Apa itu konjungsi dalam teks prosedur?'),
+      h('p',{}, 'Konjungsi adalah kata penghubung. Dalam teks prosedur, konjungsi menandai urutan waktu atau urutan langkah. Setelah konjungsi antarkalimat, biasanya dipakai tanda koma.'),
+      h('div',{class:'chips'}, ['pertama','kedua','kemudian','lalu','selanjutnya','setelah itu','sebelum','sementara itu','hingga','terakhir','akhirnya'].map(K)))
+  );
+
+  stage.replaceChildren(accountBar, hero, grid, notes);
+}
+
+/* ---------- komponen bersama permainan ---------- */
+function hud(title, unit, i, n, prog, score, streak){
+  return h('div',{},
+    h('div',{class:'hud'},
+      h('button',{class:'btn small',type:'button',onClick:()=>go(renderHome)}, 'Menu'),
+      h('h2',{class:'hud-title'}, title),
+      h('div',{class:'stats'},
+        h('span',{}, unit + ' ' + Math.min(i+1,n) + ' dari ' + n),
+        h('span',{}, 'Skor ' + score),
+        streak >= 2 ? h('span',{class:'hot'}, 'Beruntun ' + streak) : null)),
+    h('div',{class:'progress',role:'progressbar','aria-label':'Kemajuan','aria-valuemin':'0','aria-valuemax':String(n),'aria-valuenow':String(prog)},
+      h('i',{w: (prog/n*100) + '%'}))
+  );
+}
+
+function finish(id, score, total, right, label, again){
+  const g = gameById(id), max = 100; score = Math.max(0, Math.min(100, Math.round(score)));
+  const prev = best[id] || 0, isNew = score > prev;
+  if (isNew) best[id] = score;
+  if (currentUser && currentUser.role === 'student') saveBest();
+  const ratio = score / max;
+  const stars = ratio >= .85 ? 3 : ratio >= .6 ? 2 : ratio >= .3 ? 1 : 0;
+  const msgs = [
+    'Belum berhasil kali ini. Baca catatan cepat di menu, lalu coba lagi.',
+    'Tetap semangat! Baca catatan cepat di menu, lalu main lagi.',
+    'Bagus! Sedikit lagi. Coba ulangi untuk skor yang lebih tinggi.',
+    'Luar biasa! Kamu sudah paham kata aksi dan konjungsi.'
+  ];
+  stage.replaceChildren(
+    h('section',{class:'result pop'},
+      h('h2',{}, 'Selesai!'),
+      h('div',{class:'stars',role:'img','aria-label':stars + ' dari 3 bintang'}, '★'.repeat(stars) + '☆'.repeat(3-stars)),
+      h('p',{class:'big'}, 'Skor kamu ' + score + ' dari ' + max),
+      h('p',{}, label + ': ' + right + ' dari ' + total + '.'),
+      isNew && score > 0 ? h('p',{}, h('span',{class:'badge'}, 'Skor terbaik baru!')) : null,
+      h('p',{}, msgs[stars]),
+      h('div',{class:'actions'},
+        h('button',{class:'btn primary',type:'button',onClick:()=>go(again)}, 'Main lagi'),
+        h('button',{class:'btn',type:'button',onClick:()=>go(renderHome)}, 'Menu utama')))
+  );
+  updatePts();
+  window.scrollTo(0,0);
+}
+
+/* ---------- permainan 1: Tangkap Kata Aksi ---------- */
+function playAksi(){
+  const n = 8, qs = pick(AKSI, n);
+  let i = 0, score = 0, streak = 0, right = 0;
+
+  function render(){
+    const q = qs[i]; let answered = false;
+    const parts = [];
+    if (q.k) q.k.split(' ').forEach(w => parts.push({w, k:true}));
+    q.b.split(' ').forEach(w => parts.push({w, k:false}));
+    const vIdx = parts.findIndex(p => !p.k && norm(p.w) === q.v);
+    const verbText = cap(parts[vIdx].w.replace(/[.,!?]/g,''));
+
+    let hudEl = hud('Tangkap Kata Aksi','Soal',i,n,i,score,streak);
+    const fb = h('div',{class:'fb','aria-live':'polite'});
+    const card = h('div',{class:'play'});
+    const btns = parts.map((p,idx) => h('button',{class:'tok',type:'button',onClick:()=>choose(idx)}, p.w));
+
+    function choose(idx){
+      if (answered) return; answered = true;
+      const ok = idx === vIdx;
+      btns.forEach((b,j) => { if (parts[j].k) b.classList.add('konj'); if (j === vIdx) b.classList.add('aksi'); });
+      let pts = 0;
+      if (ok){ streak++; right++; pts = 12.5; score += pts; } else { streak = 0; }
+      if (!ok){ btns[idx].classList.add('picked'); if (!parts[idx].k) btns[idx].classList.add('wrong'); }
+      let msg;
+      if (ok) msg = 'Tepat! “' + verbText + '” adalah kata aksi. Kata ini menyatakan tindakan yang harus dilakukan pembaca. (+' + pts + ')';
+      else if (parts[idx].k) msg = '“' + q.k.replace(/,$/,'') + '” adalah konjungsi, penanda urutan langkah. Kata aksinya “' + verbText + '”, yaitu tindakan yang harus dilakukan.';
+      else msg = 'Belum tepat. Kata aksi di kalimat ini adalah “' + verbText + '”, kata yang menyatakan tindakan.';
+      const nextBtn = h('button',{class:'btn primary',type:'button',onClick:next}, i === n-1 ? 'Lihat hasil' : 'Soal berikutnya');
+      fb.className = 'fb pop ' + (ok ? 'ok' : 'bad');
+      fb.replaceChildren(h('p',{}, msg), nextBtn);
+      card.classList.add('done');
+      const nh = hud('Tangkap Kata Aksi','Soal',i,n,i+1,score,streak);
+      hudEl.replaceWith(nh); hudEl = nh;
+      nextBtn.focus({preventScroll:true});
+    }
+    function next(){ i++; if (i < n) render(); else finish('aksi', score, n, right, 'Jawaban benar', playAksi); }
+
+    card.append(
+      h('p',{class:'prompt'}, 'Ketuk kata aksi pada kalimat ini.'),
+      h('p',{class:'sentence'}, btns.flatMap(b => [b,' '])),
+      fb
+    );
+    stage.replaceChildren(hudEl, card);
+  }
+  render();
+}
+
+/* ---------- permainan 2: Isi Konjungsi ---------- */
+function playKonj(){
+  const n = 8, qs = pick(KONJ, n);
+  let i = 0, score = 0, streak = 0, right = 0;
+
+  function render(){
+    const q = qs[i]; let answered = false;
+    let hudEl = hud('Isi Konjungsi','Soal',i,n,i,score,streak);
+    const slot = h('span',{class:'slot','aria-label':'bagian yang dikosongkan'}, '.....');
+    const fb = h('div',{class:'fb','aria-live':'polite'});
+    const card = h('div',{class:'play'});
+    const optBtns = shuffle(q.opts).map(o => h('button',{class:'btn opt',type:'button','data-v':o,onClick:()=>choose(o)}, o));
+
+    function choose(o){
+      if (answered) return; answered = true;
+      const ok = o === q.ans;
+      slot.textContent = q.ans; slot.classList.add('filled');
+      optBtns.forEach(b => {
+        const v = b.getAttribute('data-v');
+        if (v === q.ans) b.classList.add('ok');
+        else if (v === o) b.classList.add('bad');
+        else b.classList.add('dim');
+      });
+      let pts = 0;
+      if (ok){ streak++; right++; pts = 12.5; score += pts; } else { streak = 0; }
+      const msg = ok ? 'Tepat! ' + q.why + ' (+' + pts + ')'
+                     : 'Belum tepat. Jawaban yang benar: “' + q.ans + '”. ' + q.why;
+      const nextBtn = h('button',{class:'btn primary',type:'button',onClick:next}, i === n-1 ? 'Lihat hasil' : 'Soal berikutnya');
+      fb.className = 'fb pop ' + (ok ? 'ok' : 'bad');
+      fb.replaceChildren(h('p',{}, msg), nextBtn);
+      const nh = hud('Isi Konjungsi','Soal',i,n,i+1,score,streak);
+      hudEl.replaceWith(nh); hudEl = nh;
+      nextBtn.focus({preventScroll:true});
+    }
+    function next(){ i++; if (i < n) render(); else finish('konj', score, n, right, 'Jawaban benar', playKonj); }
+
+    const lines = q.lines.map(l => {
+      const idx = l.indexOf('___');
+      if (idx < 0) return h('p',{class:'pline'}, l);
+      return h('p',{class:'pline'}, l.slice(0, idx), slot, l.slice(idx + 3));
+    });
+    card.append(
+      h('p',{class:'prompt'}, 'Pilih konjungsi yang paling tepat untuk bagian kosong.'),
+      lines,
+      h('div',{class:'opts'}, optBtns),
+      fb
+    );
+    stage.replaceChildren(hudEl, card);
+  }
+  render();
+}
+
+/* ---------- permainan 3: Susun Langkah ---------- */
+function playSusun(){
+  const n = 3, ps = pick(PROCS, n);
+  let pi = 0, score = 0, right = 0;
+
+  function render(){
+    const p = ps[pi], total = p.steps.length;
+    let base;
+    do { base = shuffle(p.steps.map((_,i) => i)); } while (base.every((v,i) => v === i));
+    let ans = [], checked = false;
+
+    let hudEl = hud('Susun Langkah','Prosedur',pi,n,pi,score,0);
+    const poolBox = h('div',{class:'pool'});
+    const ansBox = h('div',{class:'anslist'});
+    const fb = h('div',{class:'fb','aria-live':'polite'});
+    const checkBtn = h('button',{class:'btn primary',type:'button',onClick:check}, 'Periksa urutan');
+    const resetBtn = h('button',{class:'btn',type:'button',onClick:()=>{ ans = []; draw(); }}, 'Ulangi susunan');
+    const actions = h('div',{class:'actions'}, checkBtn, resetBtn);
+
+    function card(id, onClick, state){
+      const s = p.steps[id], words = s.b.split(' '), first = words.shift();
+      return h('button',{class:'step ' + (state || ''),type:'button',onClick},
+        h('span',{class:'chip konj'}, s.k), ' ',
+        h('span',{class:'chip aksi'}, first), ' ' + words.join(' '));
+    }
+    function draw(){
+      const pool = base.filter(id => !ans.includes(id));
+      poolBox.replaceChildren(...(pool.length
+        ? pool.map(id => card(id, () => { if (checked) return; ans.push(id); draw(); }))
+        : [h('p',{class:'empty'}, 'Semua kartu sudah dipasang.')]));
+      ansBox.replaceChildren(...(ans.length
+        ? ans.map((id,pos) => h('div',{class:'arow'},
+            h('span',{class:'num'}, String(pos+1)),
+            card(id, () => { if (checked) return; ans.splice(pos,1); draw(); }, checked ? (id === pos ? 'ok' : 'bad') : '')))
+        : [h('p',{class:'empty'}, 'Ketuk kartu di atas untuk menaruhnya di sini, mulai dari langkah pertama.')]));
+      checkBtn.disabled = checked || ans.length !== total;
+      resetBtn.disabled = checked || ans.length === 0;
+    }
+    function check(){
+      if (checked || ans.length !== total) return;
+      checked = true;
+      const c = ans.filter((id,pos) => id === pos).length;
+      const pts = c * (100 / 15); score += pts; right += c;
+      draw();
+      actions.hidden = true;
+      const nextBtn = h('button',{class:'btn primary',type:'button',onClick:next}, pi === n-1 ? 'Lihat hasil' : 'Prosedur berikutnya');
+      const allOk = c === total;
+      fb.className = 'fb pop ' + (allOk ? 'ok' : 'bad');
+      fb.replaceChildren(
+        h('p',{}, allOk ? 'Urutan sempurna! Semua ' + total + ' kartu tepat. (+' + pts + ')'
+                        : c + ' dari ' + total + ' kartu sudah tepat (+' + pts + '). Perhatikan konjungsi dan kaitan antarlangkah. Urutan yang benar:'),
+        allOk ? null : h('ol',{class:'correct'}, p.steps.map(s => h('li',{}, s.k + ' ' + s.b))),
+        nextBtn);
+      const nh = hud('Susun Langkah','Prosedur',pi,n,pi+1,score,0);
+      hudEl.replaceWith(nh); hudEl = nh;
+      nextBtn.focus({preventScroll:true});
+    }
+    function next(){ pi++; if (pi < n) render(); else finish('susun', score, 15, right, 'Kartu tepat', playSusun); }
+
+    stage.replaceChildren(
+      hudEl,
+      h('div',{class:'play'},
+        h('h3',{}, p.title),
+        h('p',{class:'prompt'}, 'Ketuk kartu untuk menyusun langkah dari yang pertama sampai yang terakhir. Ketuk kartu di susunanmu untuk mengembalikannya.'),
+        h('h3',{class:'panel-title'}, 'Kartu langkah'),
+        poolBox,
+        h('h3',{class:'panel-title'}, 'Urutan kamu'),
+        ansBox,
+        actions,
+        fb)
+    );
+    draw();
+  }
+  render();
+}
+
+/* ---------- permainan 4: Kilat Kata ---------- */
+function playKilat(){
+  const T = 7000;
+  const items = shuffle([
+    ...pick(KA,4).map(w => ({w, t:'aksi'})),
+    ...pick(KJ,4).map(w => ({w, t:'konj'})),
+    ...pick(KB,4).map(w => ({w, t:'bukan'}))
+  ]);
+  const n = items.length;
+  let i = 0, score = 0, streak = 0, right = 0;
+
+  function render(){
+    clearTimers();
+    const q = items[i]; let answered = false;
+    let hudEl = hud('Kilat Kata','Kata',i,n,i,score,streak);
+    const bar = h('i',{});
+    const fb = h('div',{class:'fb','aria-live':'polite'});
+    const start = performance.now();
+    const mk = (t, text, cls) => h('button',{class:'btn ' + cls,type:'button',onClick:()=>answer(t)}, text);
+    const choiceBtns = [mk('aksi','Kata aksi','aksi'), mk('konj','Konjungsi','konj'), mk('bukan','Bukan keduanya','')];
+
+    function answer(choice){
+      if (answered) return; answered = true;
+      clearTimers();
+      const left = Math.max(0, T - (performance.now() - start));
+      const ok = choice === q.t;
+      let pts = 0;
+      if (ok){ streak++; right++; pts = 100 / n; score += pts; } else { streak = 0; }
+      const msg = choice === null
+        ? 'Waktu habis. “' + q.w + '” adalah ' + LABEL[q.t] + '.'
+        : ok ? 'Benar! “' + q.w + '” adalah ' + LABEL[q.t] + '. (+' + pts + ')'
+             : 'Belum tepat. “' + q.w + '” adalah ' + LABEL[q.t] + '.';
+      fb.className = 'fb pop ' + (ok ? 'ok' : 'bad');
+      fb.replaceChildren(h('p',{}, msg));
+      const nh = hud('Kilat Kata','Kata',i,n,i+1,score,streak);
+      hudEl.replaceWith(nh); hudEl = nh;
+      adv = setTimeout(() => { adv = null; i++; if (i < n) render(); else finish('kilat', score, n, right, 'Jawaban benar', playKilat); }, 1700);
+    }
+
+    timer = setInterval(() => {
+      const left = T - (performance.now() - start);
+      bar.style.width = Math.max(0, left/T*100) + '%';
+      bar.style.background = left/T > .3 ? '' : 'var(--bad)';
+      if (left <= 0) answer(null);
+    }, 80);
+
+    stage.replaceChildren(
+      hudEl,
+      h('div',{class:'play'},
+        h('p',{class:'prompt'}, 'Kata ini termasuk yang mana?'),
+        h('div',{class:'flash','aria-live':'polite'}, q.w),
+        h('div',{class:'timer',role:'img','aria-label':'Sisa waktu'}, bar),
+        h('div',{class:'choices'}, choiceBtns),
+        fb)
+    );
+  }
+  render();
+}
+
+(async function boot(){
+  const {data:{session}} = await supabase.auth.getSession();
+  if(!session){go(renderLogin);return;}
+  const {data:profile,error}=await supabase.from('profiles').select('id,display_name,class_code,role').eq('id',session.user.id).single();
+  if(error){await supabase.auth.signOut();go(renderLogin);return;}
+  currentUser={id:session.user.id,email:session.user.email,role:profile.role,name:profile.display_name,kelas:profile.class_code};
+  if(profile.role==='teacher'){await renderTeacher();}
+  else {await loadBest();go(renderHome);}
+})();
+})();
+</script>
+</body>
+</html>
