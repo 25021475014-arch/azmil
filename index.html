@@ -449,7 +449,7 @@ const CLASS_ACCESS_CODES = {
 };
 async function studentLogin(){
   const name=$('#student-name').value.trim();
-  const code=$('#student-class-code').value.trim().toUpperCase().replace(/\\s+/g,'');
+  const code=$('#student-class-code').value.trim().toUpperCase().replace(/\s+/g,'');
   const kelas=CLASS_ACCESS_CODES[code];
   if(!name){alert('Isi nama lengkap terlebih dahulu.');return;}
   if(!kelas){alert('Kode kelas tidak sesuai. Periksa kembali kode dari guru.');return;}
