@@ -424,15 +424,15 @@ function recipeCard(){
 function renderLogin(){
   const student = h('section',{class:'auth-card'},
     h('h2',{},'👩‍🎓 Akun Siswa'),
-    h('p',{},'Masuk dengan email dan kata sandi, atau buat akun baru.'),
+    h('p',{},'Daftar dengan nama, email, dan kode kelas. Untuk masuk kembali dari perangkat lain, gunakan email, kode kelas, dan kode pemulihan pribadi.'),
+    h('div',{class:'field'},h('label',{},'Nama lengkap (untuk pendaftaran)'),h('input',{id:'student-name',autocomplete:'name',placeholder:'Nama siswa'})),
     h('div',{class:'field'},h('label',{},'Email siswa'),h('input',{id:'student-email',type:'email',autocomplete:'email',placeholder:'nama@email.com'})),
-    h('div',{class:'field'},h('label',{},'Nama lengkap'),h('input',{id:'student-name',placeholder:'Nama siswa'})),
-    h('div',{class:'field'},h('label',{},'Kelas'),h('input',{id:'student-class',placeholder:'Contoh: VII A'})),
-    h('div',{class:'field'},h('label',{},'Kata sandi'),h('input',{id:'student-pass',type:'password',autocomplete:'current-password',placeholder:'Minimal 6 karakter'})),
+    h('div',{class:'field'},h('label',{},'Kode kelas'),h('input',{id:'student-class-code',autocomplete:'off',placeholder:'Contoh: VIIA2026'})),
+    h('div',{class:'field'},h('label',{},'Kode pemulihan (untuk masuk kembali)'),h('input',{id:'student-recovery-code',autocomplete:'off',placeholder:'Masukkan kode pemulihan pribadi'})),
     h('div',{class:'actions'},
-      h('button',{class:'btn primary',type:'button',onClick:()=>studentLogin(false)},'Masuk'),
-      h('button',{class:'btn',type:'button',onClick:()=>studentLogin(true)},'Daftar akun siswa')),
-    h('p',{class:'small'},'Akun dan nilai siswa tersimpan secara daring di Supabase. Gunakan email yang aktif untuk pendaftaran.')
+      h('button',{class:'btn primary',type:'button',onClick:()=>studentLogin('register')},'Daftar siswa'),
+      h('button',{class:'btn',type:'button',onClick:()=>studentLogin('login')},'Masuk kembali')),
+    h('p',{class:'small'},'Kode pemulihan dibuat satu kali saat pendaftaran. Simpan di tempat aman. Kode ini bukan OTP dan tidak dikirim melalui email.')
   );
   const teacher = h('section',{class:'auth-card'},
     h('h2',{},'👩‍🏫 Akun Guru'),
@@ -447,31 +447,62 @@ function renderLogin(){
     h('div',{class:'auth-grid'},student,teacher)
   );
 }
-async function studentLogin(register){
-  const email=$('#student-email').value.trim().toLowerCase();
+async function studentLogin(mode){
   const name=$('#student-name').value.trim();
-  const kelas=$('#student-class').value.trim();
-  const pass=$('#student-pass').value;
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Masukkan alamat email yang valid.');return;}
-  if(pass.length<6){alert('Kata sandi minimal 6 karakter.');return;}
-  if(register){
-    if(!name||!kelas){alert('Isi nama lengkap dan kelas untuk mendaftar.');return;}
-    const {data,error}=await supabase.auth.signUp({
-      email,password:pass,
-      options:{data:{display_name:name,class_code:kelas}}
-    });
-    if(error){alert('Pendaftaran gagal: '+error.message);return;}
-    if(!data.session){alert('Pendaftaran berhasil. Periksa email untuk konfirmasi, lalu masuk setelah akun dikonfirmasi.');return;}
-    currentUser={id:data.user.id,email:data.user.email,role:'student',name,kelas};
-  }else{
-    const {data,error}=await supabase.auth.signInWithPassword({email,password:pass});
-    if(error){alert('Gagal masuk: '+error.message);return;}
-    const {data:profile,error:profileError}=await supabase.from('profiles').select('id,display_name,class_code,role').eq('id',data.user.id).single();
-    if(profileError){alert('Profil tidak dapat dimuat: '+profileError.message);return;}
-    if(profile.role!=='student'){await supabase.auth.signOut();alert('Akun ini bukan akun siswa.');return;}
-    currentUser={id:data.user.id,email:data.user.email,role:profile.role,name:profile.display_name,kelas:profile.class_code};
+  const email=$('#student-email').value.trim().toLowerCase();
+  const code=$('#student-class-code').value.trim().toUpperCase().replace(/\\s+/g,'');
+  const recoveryCode=$('#student-recovery-code').value.trim();
+  if(!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){alert('Masukkan alamat email yang valid.');return;}
+  if(!code){alert('Masukkan kode kelas dari guru.');return;}
+  if(mode==='register' && !name){alert('Masukkan nama lengkap untuk pendaftaran.');return;}
+  if(mode==='login' && !recoveryCode){alert('Masukkan kode pemulihan pribadi.');return;}
+  const payload = mode==='register'
+    ? {action:'register',name,email,class_code:code}
+    : {action:'login',email,class_code:code,recovery_code:recoveryCode};
+  const {data:authData,error:authError}=await supabase.functions.invoke('student-access',{body:payload});
+  if(authError || !authData?.token_hash){
+    alert('Tidak dapat memproses akun siswa: '+(authData?.error || authError?.message || 'respons server tidak lengkap'));
+    return;
   }
-  await loadBest();go(renderHome);
+  const {data:sessionData,error:sessionError}=await supabase.auth.verifyOtp({
+    token_hash:authData.token_hash,
+    type:'email'
+  });
+  if(sessionError || !sessionData?.user){
+    alert('Identitas berhasil diverifikasi, tetapi sesi belum dapat dibuat: '+(sessionError?.message || 'sesi tidak tersedia'));
+    return;
+  }
+  const {data:profile,error:profileError}=await supabase.from('profiles')
+    .select('id,display_name,class_code,role').eq('id',sessionData.user.id).single();
+  if(profileError || !profile || profile.role!=='student'){
+    await supabase.auth.signOut();
+    alert('Profil siswa belum dapat dimuat: '+(profileError?.message || 'profil tidak ditemukan'));
+    return;
+  }
+  currentUser={id:sessionData.user.id,email:sessionData.user.email,role:'student',name:profile.display_name,kelas:profile.class_code};
+  await loadBest();
+  if(mode==='register'){
+    stage.replaceChildren(
+      h('section',{class:'auth-card'},
+        h('h2',{},'Pendaftaran berhasil'),
+        h('p',{},'Simpan kode pemulihan berikut. Kode ini hanya ditampilkan saat pendaftaran dan diperlukan untuk masuk dari perangkat lain.'),
+        h('p',{class:'notice','aria-label':'Kode pemulihan'},authData.recovery_code),
+        h('div',{class:'actions'},
+          h('button',{class:'btn',type:'button',onClick:()=>GenCopyRecovery(authData.recovery_code)},'Salin kode'),
+          h('button',{class:'btn primary',type:'button',onClick:()=>go(renderHome)},'Saya sudah menyimpan kode')),
+        h('p',{class:'small'},'Jangan bagikan kode ini kepada orang lain. Jika hilang, akun tidak dapat dipulihkan dengan email saja.')
+      )
+    );
+  } else {
+    go(renderHome);
+  }
+}
+function GenCopyRecovery(value){
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(value).then(()=>alert('Kode pemulihan berhasil disalin.')).catch(()=>alert('Salin kode secara manual: '+value));
+  } else {
+    alert('Salin kode pemulihan ini dan simpan di tempat aman: '+value);
+  }
 }
 async function teacherLogin(){
   const email=$('#teacher-email').value.trim().toLowerCase();
