@@ -298,9 +298,9 @@ const AKSI = [
 ];
 
 const KONJ = [
-  {lines:['___, siapkan gelas dan sendok.','Kemudian, tuangkan air panas ke dalam gelas.','Selanjutnya, masukkan teh celup.'],
-   ans:'Pertama', opts:['Pertama','Terakhir','Akhirnya','Sementara itu'],
-   why:'Langkah yang membuka prosedur diawali konjungsi Pertama (atau Mula-mula).'},
+  {lines:['Pertama, siapkan panci dan air secukupnya.','___, nyalakan kompor dan tunggu hingga air mendidih.','Masukkan mi ke dalam air mendidih.'],
+   ans:'Kemudian', opts:['Kemudian','Setelah itu','Sementara itu','Terakhir'],
+   why:'Kemudian tepat digunakan untuk menghubungkan langkah pertama dengan langkah berikutnya dalam urutan prosedur.'},
   {lines:['Pertama, cuci kedua tangan dengan sabun.','Kemudian, bilas dengan air mengalir.','___, keringkan tangan dengan handuk bersih.'],
    ans:'Terakhir', opts:['Terakhir','Pertama','Mula-mula','Sebelum itu'],
    why:'Langkah penutup memakai Terakhir (atau Akhirnya). Pertama dan Mula-mula hanya untuk langkah awal.'},
@@ -671,7 +671,7 @@ function playAksi(){
 
 /* ---------- permainan 2: Isi Konjungsi ---------- */
 function playKonj(){
-  const n = 8, qs = pick(KONJ, n);
+  const n = 8, qs = [KONJ[0], ...pick(KONJ.slice(1), n - 1)];
   let i = 0, score = 0, streak = 0, right = 0;
 
   function render(){
