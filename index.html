@@ -505,6 +505,22 @@ async function createStudent(){
     h('p',{class:'small'},'Pastikan nama dan email sesuai dengan daftar siswa sebelum kode diberikan.')
   ));
 }
+async function resetStudentCode(){
+  if(!currentUser || currentUser.role!=='teacher'){alert('Hanya guru yang dapat mereset kode siswa.');return;}
+  const email=$('#reset-student-email').value.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Masukkan email siswa yang valid.');return;}
+  if(!confirm('Pastikan identitas siswa sudah diperiksa. Kode lama akan langsung tidak berlaku. Lanjutkan?')) return;
+  const {data,error}=await supabase.functions.invoke('student-access',{body:{action:'reset_student_code',email,class_code:'VIIA2026'}});
+  if(error || !data?.recovery_code){alert('Kode belum dapat direset. Periksa email siswa dan coba kembali.');return;}
+  stage.replaceChildren(h('section',{class:'auth-card'},
+    h('h2',{},'Kode pemulihan diperbarui'),
+    h('p',{},'Kode lama sudah tidak berlaku. Berikan kode baru langsung kepada siswa setelah memeriksa identitasnya.'),
+    h('p',{class:'notice','aria-label':'Kode pemulihan baru'},data.recovery_code),
+    h('div',{class:'actions'},
+      h('button',{class:'btn',type:'button',onClick:()=>GenCopyRecovery(data.recovery_code)},'Salin kode baru'),
+      h('button',{class:'btn primary',type:'button',onClick:renderTeacher},'Kembali ke dasbor guru'))
+  ));
+}
 async function renderTeacher(){
   const [profilesRes,scoresRes]=await Promise.all([
     supabase.from('profiles').select('id,display_name,class_code').eq('role','student').order('display_name'),
@@ -535,10 +551,12 @@ async function renderTeacher(){
     h('div',{class:'hud'},h('h2',{class:'hud-title'},'📊 Dasbor Guru'),h('button',{class:'btn small',type:'button',onClick:logout},'Keluar')),
     h('section',{class:'teacher-panel'},
       h('h2',{},'Buat akun siswa'),
-      h('p',{},'Guru membuat akun setelah memeriksa identitas siswa. Kode pemulihan ditampilkan satu kali untuk diberikan langsung kepada siswa.'),
+      h('p',{},'Guru membuat akun setelah memeriksa identitas siswa. Email hanya menjadi identitas akun, bukan bukti kepemilikan. Kode pemulihan ditampilkan satu kali untuk diberikan langsung kepada siswa.'),
       h('div',{class:'field'},h('label',{},'Nama lengkap siswa'),h('input',{id:'new-student-name',autocomplete:'off',placeholder:'Nama sesuai daftar kelas'})),
       h('div',{class:'field'},h('label',{},'Email siswa'),h('input',{id:'new-student-email',type:'email',autocomplete:'off',placeholder:'nama@email.com'})),
-      h('button',{class:'btn primary',type:'button',onClick:createStudent},'Buat akun dan kode pemulihan')
+      h('button',{class:'btn primary',type:'button',onClick:createStudent},'Buat akun dan kode pemulihan'),
+      h('div',{class:'field'},h('label',{},'Email siswa untuk reset kode'),h('input',{id:'reset-student-email',type:'email',autocomplete:'off',placeholder:'nama@email.com'})),
+      h('button',{class:'btn',type:'button',onClick:resetStudentCode},'Buat kode pemulihan baru')
     ),
     h('section',{class:'teacher-panel'},h('h2',{},'Rekap hasil permainan'),h('p',{},'Setiap permainan memiliki nilai maksimal 100. Data diambil langsung dari Supabase.'),table,
       h('div',{class:'actions'},h('button',{class:'btn',type:'button',onClick:()=>{
