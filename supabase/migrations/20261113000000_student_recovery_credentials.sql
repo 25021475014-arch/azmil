@@ -36,6 +36,15 @@ begin
     and (locked_until is null or locked_until <= now())
   returning (locked_until is not null and locked_until > now()) into v_locked;
 
+  -- A concurrent failed attempt may have locked the row just before this update.
+  -- Re-read the state so the caller consistently receives the lock status.
+  if not found then
+    select (locked_until is not null and locked_until > now())
+      into v_locked
+    from public.student_access_credentials
+    where user_id = p_user_id;
+  end if;
+
   return coalesce(v_locked, false);
 end;
 $$;
