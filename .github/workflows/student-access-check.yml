@@ -36,7 +36,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFileSync, writeFileSync } from 'node:fs';
           const html = readFileSync('index.html', 'utf8');
-          const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)]
+          const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
             .map(match => match[1]).filter(script => script.trim());
           if (scripts.length !== 1) throw new Error('Expected one inline application script.');
           writeFileSync('/tmp/bengkel-prosedur.js', scripts[0]);
