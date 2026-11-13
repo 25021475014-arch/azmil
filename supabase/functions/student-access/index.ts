@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
-const CLASS_CODES: Record<string, string> = { "VIIA2026": "VII A", "VIIB2026": "VII B" };
+const CLASS_CODES: Record<string, string> = { "VIIA2026": "VII A" };
 const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: corsHeaders });
 
