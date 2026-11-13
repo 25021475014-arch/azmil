@@ -1,4 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  CLASS_CODES, formatRecoveryCode, isValidEmail, isValidRecoveryCode,
+  isValidStudentName, normalizeClassCode, normalizeEmail, safeEqual,
+} from "./logic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://25021475014-arch.github.io",
@@ -6,7 +10,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
-const CLASS_CODES: Record<string, string> = { "VIIA2026": "VII A" };
 const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: corsHeaders });
 
@@ -17,12 +20,6 @@ function randomHex(bytes: number) {
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map(v => v.toString(16).padStart(2, "0")).join("");
-}
-function safeEqual(a: string, b: string) {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
 
 const url = Deno.env.get("SUPABASE_URL")!;
@@ -43,7 +40,7 @@ Deno.serve(async req => {
   try {
     const body = await req.json();
     const action = String(body.action || "");
-    const email = String(body.email || "").trim().toLowerCase();
+    const email = normalizeEmail(body.email);
     const classCode = String(body.class_code || "").trim().toUpperCase().replace(/\s+/g, "");
     const className = CLASS_CODES[classCode];
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Alamat email tidak valid." }, 400);
@@ -51,8 +48,8 @@ Deno.serve(async req => {
 
     if (action === "register") {
       const name = String(body.name || "").trim();
-      if (name.length < 2 || name.length > 100) return json({ error: "Nama siswa harus terdiri dari 2–100 karakter." }, 400);
-      const recoveryCode = randomHex(24).match(/.{1,8}/g)!.join("-");
+      if (!isValidStudentName(name)) return json({ error: "Nama siswa harus terdiri dari 2–100 karakter." }, 400);
+      const recoveryCode = formatRecoveryCode(randomHex(24));
       const recoveryHash = await sha256(recoveryCode);
       const randomPassword = randomHex(32) + "aA!9";
       const { data: created, error: createError } = await admin.auth.admin.createUser({
@@ -81,7 +78,7 @@ Deno.serve(async req => {
 
     if (action === "login") {
       const recoveryCode = String(body.recovery_code || "").trim().toUpperCase();
-      if (!/^[A-F0-9]{8}(-[A-F0-9]{8}){2}$/.test(recoveryCode)) return json({ error: "Format kode pemulihan tidak sesuai." }, 400);
+      if (!isValidRecoveryCode(recoveryCode)) return json({ error: "Format kode pemulihan tidak sesuai." }, 400);
       const { data: credential, error: lookupError } = await admin.from("student_access_credentials")
         .select("user_id,email,class_code,recovery_hash,failed_attempts,locked_until")
         .eq("email", email).eq("class_code", classCode).maybeSingle();
