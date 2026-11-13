@@ -1,0 +1,43 @@
+name: Student access checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/student-access/**"
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+      - "index.html"
+      - ".github/workflows/student-access-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check student access Edge Function
+        run: deno check --no-lock supabase/functions/student-access/index.ts
+
+      - name: Confirm initial rollout is limited to VII A
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const source = readFileSync('supabase/functions/student-access/index.ts', 'utf8');
+          const expected = 'const CLASS_CODES: Record<string, string> = { "VIIA2026": "VII A" };';
+          if (!source.includes(expected) || source.includes('VIIB2026')) {
+            console.error('Class configuration does not match the VII A-only rollout.');
+            process.exit(1);
+          }
+          console.log('VII A-only class configuration verified.');
+          NODE
