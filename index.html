@@ -423,16 +423,12 @@ function recipeCard(){
 
 function renderLogin(){
   const student = h('section',{class:'auth-card'},
-    h('h2',{},'👩‍🎓 Akun Siswa'),
-    h('p',{},'Masuk dengan email dan kata sandi, atau buat akun baru.'),
-    h('div',{class:'field'},h('label',{},'Email siswa'),h('input',{id:'student-email',type:'email',autocomplete:'email',placeholder:'nama@email.com'})),
-    h('div',{class:'field'},h('label',{},'Nama lengkap'),h('input',{id:'student-name',placeholder:'Nama siswa'})),
-    h('div',{class:'field'},h('label',{},'Kelas'),h('input',{id:'student-class',placeholder:'Contoh: VII A'})),
-    h('div',{class:'field'},h('label',{},'Kata sandi'),h('input',{id:'student-pass',type:'password',autocomplete:'current-password',placeholder:'Minimal 6 karakter'})),
-    h('div',{class:'actions'},
-      h('button',{class:'btn primary',type:'button',onClick:()=>studentLogin(false)},'Masuk'),
-      h('button',{class:'btn',type:'button',onClick:()=>studentLogin(true)},'Daftar akun siswa')),
-    h('p',{class:'small'},'Akun dan nilai siswa tersimpan secara daring di Supabase. Gunakan email yang aktif untuk pendaftaran.')
+    h('h2',{},'👩‍🎓 Masuk Siswa'),
+    h('p',{},'Masukkan nama lengkap dan kode kelas. Tidak perlu email atau kata sandi.'),
+    h('div',{class:'field'},h('label',{},'Nama lengkap'),h('input',{id:'student-name',autocomplete:'name',placeholder:'Nama siswa'})),
+    h('div',{class:'field'},h('label',{},'Kode kelas'),h('input',{id:'student-class-code',autocomplete:'off',placeholder:'Contoh: VIIA2026'})),
+    h('button',{class:'btn primary',type:'button',onClick:studentLogin},'Masuk ke permainan'),
+    h('p',{class:'small'},'Gunakan kode yang dibagikan guru untuk kelasmu. Gunakan perangkat dan browser yang sama agar identitas serta skor tetap tersimpan.')
   );
   const teacher = h('section',{class:'auth-card'},
     h('h2',{},'👩‍🏫 Akun Guru'),
@@ -447,30 +443,33 @@ function renderLogin(){
     h('div',{class:'auth-grid'},student,teacher)
   );
 }
-async function studentLogin(register){
-  const email=$('#student-email').value.trim().toLowerCase();
+const CLASS_ACCESS_CODES = {
+  'VIIA2026':'VII A',
+  'VIIB2026':'VII B'
+};
+async function studentLogin(){
   const name=$('#student-name').value.trim();
-  const kelas=$('#student-class').value.trim();
-  const pass=$('#student-pass').value;
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Masukkan alamat email yang valid.');return;}
-  if(pass.length<6){alert('Kata sandi minimal 6 karakter.');return;}
-  if(register){
-    if(!name||!kelas){alert('Isi nama lengkap dan kelas untuk mendaftar.');return;}
-    const {data,error}=await supabase.auth.signUp({
-      email,password:pass,
-      options:{data:{display_name:name,class_code:kelas}}
-    });
-    if(error){alert('Pendaftaran gagal: '+error.message);return;}
-    if(!data.session){alert('Pendaftaran berhasil. Periksa email untuk konfirmasi, lalu masuk setelah akun dikonfirmasi.');return;}
-    currentUser={id:data.user.id,email:data.user.email,role:'student',name,kelas};
-  }else{
-    const {data,error}=await supabase.auth.signInWithPassword({email,password:pass});
-    if(error){alert('Gagal masuk: '+error.message);return;}
-    const {data:profile,error:profileError}=await supabase.from('profiles').select('id,display_name,class_code,role').eq('id',data.user.id).single();
-    if(profileError){alert('Profil tidak dapat dimuat: '+profileError.message);return;}
-    if(profile.role!=='student'){await supabase.auth.signOut();alert('Akun ini bukan akun siswa.');return;}
-    currentUser={id:data.user.id,email:data.user.email,role:profile.role,name:profile.display_name,kelas:profile.class_code};
+  const code=$('#student-class-code').value.trim().toUpperCase().replace(/\\s+/g,'');
+  const kelas=CLASS_ACCESS_CODES[code];
+  if(!name){alert('Isi nama lengkap terlebih dahulu.');return;}
+  if(!kelas){alert('Kode kelas tidak sesuai. Periksa kembali kode dari guru.');return;}
+  const {data,error}=await supabase.auth.signInAnonymously({
+    options:{data:{display_name:name,class_code:kelas}}
+  });
+  if(error){alert('Tidak dapat masuk: '+error.message+' Pastikan fitur anonymous sign-ins sudah diaktifkan oleh administrator Supabase.');return;}
+  const {data:profile,error:profileError}=await supabase.from('profiles')
+    .select('id,display_name,class_code,role').eq('id',data.user.id).single();
+  if(profileError || !profile){
+    await supabase.auth.signOut();
+    alert('Identitas siswa belum dapat dibuat: '+(profileError?.message || 'profil tidak ditemukan'));
+    return;
   }
+  if(profile.role!=='student'){
+    await supabase.auth.signOut();
+    alert('Akun ini tidak memiliki akses siswa.');
+    return;
+  }
+  currentUser={id:data.user.id,email:null,role:'student',name:profile.display_name,kelas:profile.class_code};
   await loadBest();go(renderHome);
 }
 async function teacherLogin(){
@@ -488,6 +487,8 @@ async function teacherLogin(){
   best={}; await renderTeacher();
 }
 async function logout(){
+  const {data:{user}}=await supabase.auth.getUser();
+  if(user?.is_anonymous && !confirm('Jika keluar, identitas anonim dan skor siswa ini tidak dapat dipulihkan dari perangkat lain. Apakah tetap ingin keluar?')) return;
   await supabase.auth.signOut();
   currentUser=null;best={};go(renderLogin);
 }
