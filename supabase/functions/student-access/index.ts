@@ -30,8 +30,20 @@ const admin = createClient(url, secretKey, { auth: { autoRefreshToken: false, pe
 
 async function issueSession(email: string) {
   const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
-  if (error || !data?.properties?.hashed_token) throw new Error(error?.message || "Token sesi tidak dapat dibuat");
+  if (error || !data?.properties?.hashed_token) throw new Error("Token sesi tidak dapat dibuat");
   return data.properties.hashed_token;
+}
+
+async function requireTeacher(req: Request) {
+  const authorization = req.headers.get("Authorization") || "";
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  const { data, error } = await admin.auth.getUser(match[1]);
+  if (error || !data.user) return null;
+  const { data: profile, error: profileError } = await admin.from("profiles")
+    .select("id,role").eq("id", data.user.id).maybeSingle();
+  if (profileError || profile?.role !== "teacher") return null;
+  return data.user;
 }
 
 Deno.serve(async req => {
@@ -42,71 +54,54 @@ Deno.serve(async req => {
     const action = String(body.action || "");
     const email = normalizeEmail(body.email);
     const classCode = normalizeClassCode(body.class_code);
-    const className = CLASS_CODES[classCode];
     if (!isValidEmail(email)) return json({ error: "Alamat email tidak valid." }, 400);
-    if (!className) return json({ error: "Kode kelas tidak terdaftar." }, 400);
+    if (!CLASS_CODES[classCode]) return json({ error: "Kode kelas tidak terdaftar." }, 400);
 
-    if (action === "register") {
+    if (action === "create_student") {
+      const teacher = await requireTeacher(req);
+      if (!teacher) return json({ error: "Akses hanya diberikan kepada akun guru." }, 403);
       const name = String(body.name || "").trim();
       if (!isValidStudentName(name)) return json({ error: "Nama siswa harus terdiri dari 2–100 karakter." }, 400);
       const recoveryCode = formatRecoveryCode(randomHex(24));
       const recoveryHash = await sha256(recoveryCode);
       const randomPassword = randomHex(32) + "aA!9";
+      const className = CLASS_CODES[classCode];
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         email, password: randomPassword, email_confirm: true,
         user_metadata: { display_name: name, class_code: className },
       });
-      if (createError || !created.user) return json({ error: createError?.message || "Akun siswa tidak dapat dibuat." }, 409);
+      if (createError || !created.user) {
+        return json({ error: "Akun tidak dapat dibuat. Periksa email atau hubungi administrator." }, 409);
+      }
       const { error: insertError } = await admin.from("student_access_credentials").insert({
         user_id: created.user.id, email, class_code: classCode, recovery_hash: recoveryHash,
       });
       if (insertError) {
         const { error: cleanupError } = await admin.auth.admin.deleteUser(created.user.id);
-        if (cleanupError) console.error("registration cleanup failed:", cleanupError.message);
-        return json({ error: "Pendaftaran tidak dapat diselesaikan. Silakan coba kembali." }, 500);
+        if (cleanupError) console.error("student cleanup failed:", cleanupError.message);
+        return json({ error: "Pembuatan akun tidak dapat diselesaikan." }, 500);
       }
-      try {
-        const tokenHash = await issueSession(email);
-        return json({ token_hash: tokenHash, recovery_code: recoveryCode });
-      } catch (sessionError) {
-        const { error: cleanupError } = await admin.auth.admin.deleteUser(created.user.id);
-        if (cleanupError) console.error("session cleanup failed:", cleanupError.message);
-        console.error("registration session issuance failed:", sessionError instanceof Error ? sessionError.message : "unknown");
-        return json({ error: "Sesi pendaftaran tidak dapat dibuat. Silakan ulangi pendaftaran." }, 500);
-      }
+      return json({ recovery_code: recoveryCode });
     }
 
     if (action === "login") {
       const recoveryCode = String(body.recovery_code || "").trim().toUpperCase();
-      if (!isValidRecoveryCode(recoveryCode)) return json({ error: "Format kode pemulihan tidak sesuai." }, 400);
+      if (!isValidRecoveryCode(recoveryCode)) return json({ error: "Email atau kode pemulihan tidak cocok." }, 401);
       const { data: credential, error: lookupError } = await admin.from("student_access_credentials")
-        .select("user_id,email,class_code,recovery_hash,failed_attempts,locked_until")
+        .select("user_id,email,class_code,recovery_hash")
         .eq("email", email).eq("class_code", classCode).maybeSingle();
-      if (lookupError) return json({ error: "Data akun belum dapat diperiksa." }, 500);
-      if (!credential) return json({ error: "Email, kode kelas, atau kode pemulihan tidak cocok." }, 401);
-      if (credential.locked_until && new Date(credential.locked_until).getTime() > Date.now()) {
-        return json({ error: "Terlalu banyak percobaan. Coba kembali setelah 15 menit." }, 429);
-      }
+      if (lookupError || !credential) return json({ error: "Email atau kode pemulihan tidak cocok." }, 401);
       const submittedHash = await sha256(recoveryCode);
       if (!safeEqual(submittedHash, credential.recovery_hash)) {
-        const { data: locked, error: attemptError } = await admin.rpc("record_student_access_failure", {
-          p_user_id: credential.user_id,
-        });
-        if (attemptError) {
-          console.error("failed-attempt update failed:", attemptError.message);
-          return json({ error: "Percobaan masuk belum dapat diproses. Silakan coba kembali." }, 500);
-        }
-        if (locked) return json({ error: "Terlalu banyak percobaan. Coba kembali setelah 15 menit." }, 429);
-        return json({ error: "Email, kode kelas, atau kode pemulihan tidak cocok." }, 401);
+        return json({ error: "Email atau kode pemulihan tidak cocok." }, 401);
       }
-      const { error: resetError } = await admin.from("student_access_credentials")
-        .update({ failed_attempts: 0, locked_until: null }).eq("user_id", credential.user_id);
-      if (resetError) {
-        console.error("failed-attempt reset failed:", resetError.message);
-        return json({ error: "Akun belum dapat diproses. Silakan coba kembali." }, 500);
+      const { data: authUser, error: userError } = await admin.auth.admin.getUserById(credential.user_id);
+      if (userError || !authUser.user || authUser.user.email?.toLowerCase() !== email) {
+        return json({ error: "Akun tidak dapat diverifikasi. Hubungi guru." }, 401);
       }
       return json({ token_hash: await issueSession(email) });
     }
+
     return json({ error: "Tindakan tidak dikenal." }, 400);
   } catch (error) {
     console.error("student-access error:", error instanceof Error ? error.message : "unknown");
