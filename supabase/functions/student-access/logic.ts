@@ -17,7 +17,7 @@ export function isValidStudentName(value: string): boolean {
 }
 
 export function isValidRecoveryCode(value: string): boolean {
-  return /^[A-F0-9]{8}(-[A-F0-9]{8}){2}$/.test(value);
+  return /^[A-F0-9]{8}(-[A-F0-9]{8}){5}$/.test(value);
 }
 
 export function formatRecoveryCode(hex: string): string {
