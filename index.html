@@ -454,7 +454,7 @@ async function studentLogin(){
     body:{action:'login',email,class_code:code,recovery_code:recoveryCode}
   });
   if(authError || !authData?.token_hash){alert('Email atau kode pemulihan tidak cocok. Periksa kembali data yang diberikan guru.');return;}
-  const {data:sessionData,error:sessionError}=await supabase.auth.verifyOtp({token_hash:authData.token_hash,type:'magiclink'});
+  const {data:sessionData,error:sessionError}=await supabase.auth.verifyOtp({token_hash:authData.token_hash,type:'email'});
   if(sessionError || !sessionData?.user){alert('Identitas diterima, tetapi sesi belum dapat dibuat. Silakan coba kembali.');return;}
   const {data:profile,error:profileError}=await supabase.from('profiles').select('id,display_name,class_code,role').eq('id',sessionData.user.id).single();
   if(profileError || !profile || profile.role!=='student'){
