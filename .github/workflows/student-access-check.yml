@@ -33,6 +33,21 @@ jobs:
       - name: Run student access unit tests
         run: deno test --no-lock supabase/functions/student-access/logic.test.ts
 
+      - name: Check browser JavaScript syntax and auth flow
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const html = readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)]
+            .map(match => match[1]).filter(script => script.trim());
+          if (scripts.length !== 1) throw new Error('Expected one inline application script.');
+          writeFileSync('/tmp/bengkel-prosedur.js', scripts[0]);
+          if (!scripts[0].includes("type:'magiclink'")) throw new Error('Magic-link token verification type mismatch.');
+          if (scripts[0].includes("action:'register'")) throw new Error('Public student registration must remain disabled.');
+          if (!scripts[0].includes("action:'create_student'")) throw new Error('Teacher student-provisioning flow missing.');
+          NODE
+          node --check /tmp/bengkel-prosedur.js
+
       - name: Confirm initial rollout is limited to VII A
         run: |
           node --input-type=module <<'NODE'
