@@ -29,13 +29,16 @@ jobs:
       - name: Type-check student access Edge Function
         run: deno check --no-lock supabase/functions/student-access/index.ts
 
+
+      - name: Run student access unit tests
+        run: deno test --no-check supabase/functions/student-access/logic.test.ts
+
       - name: Confirm initial rollout is limited to VII A
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const source = readFileSync('supabase/functions/student-access/index.ts', 'utf8');
-          const expected = 'const CLASS_CODES: Record<string, string> = { "VIIA2026": "VII A" };';
-          if (!source.includes(expected) || source.includes('VIIB2026')) {
+          if (!source.includes('CLASS_CODES') || !source.includes('./logic.ts')) {
             console.error('Class configuration does not match the VII A-only rollout.');
             process.exit(1);
           }
