@@ -469,7 +469,21 @@ async function studentLogin(mode){
     type:'email'
   });
   if(sessionError || !sessionData?.user){
-    alert('Identitas berhasil diverifikasi, tetapi sesi belum dapat dibuat: '+(sessionError?.message || 'sesi tidak tersedia'));
+    if(mode==='register' && authData.recovery_code){
+      stage.replaceChildren(
+        h('section',{class:'auth-card'},
+          h('h2',{},'Pendaftaran tercatat, sesi belum aktif'),
+          h('p',{},'Akun siswa sudah dibuat. Namun, perangkat ini belum berhasil membuka sesi. Simpan kode pemulihan sekarang, lalu gunakan tombol Masuk kembali untuk mencoba masuk.'),
+          h('p',{class:'notice','aria-label':'Kode pemulihan'},authData.recovery_code),
+          h('div',{class:'actions'},
+            h('button',{class:'btn',type:'button',onClick:()=>GenCopyRecovery(authData.recovery_code)},'Salin kode'),
+            h('button',{class:'btn primary',type:'button',onClick:()=>go(renderLogin)},'Kembali ke halaman masuk')),
+          h('p',{class:'small'},'Kode ini hanya ditampilkan pada tahap pendaftaran. Simpan sebelum meninggalkan halaman.')
+        )
+      );
+    } else {
+      alert('Identitas berhasil diverifikasi, tetapi sesi belum dapat dibuat: '+(sessionError?.message || 'sesi tidak tersedia'));
+    }
     return;
   }
   const {data:profile,error:profileError}=await supabase.from('profiles')
