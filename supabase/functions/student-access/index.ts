@@ -64,11 +64,19 @@ Deno.serve(async req => {
         user_id: created.user.id, email, class_code: classCode, recovery_hash: recoveryHash,
       });
       if (insertError) {
-        await admin.auth.admin.deleteUser(created.user.id);
-        return json({ error: "Data pemulihan tidak dapat disimpan: " + insertError.message }, 500);
+        const { error: cleanupError } = await admin.auth.admin.deleteUser(created.user.id);
+        if (cleanupError) console.error("registration cleanup failed:", cleanupError.message);
+        return json({ error: "Pendaftaran tidak dapat diselesaikan. Silakan coba kembali." }, 500);
       }
-      const tokenHash = await issueSession(email);
-      return json({ token_hash: tokenHash, recovery_code: recoveryCode });
+      try {
+        const tokenHash = await issueSession(email);
+        return json({ token_hash: tokenHash, recovery_code: recoveryCode });
+      } catch (sessionError) {
+        const { error: cleanupError } = await admin.auth.admin.deleteUser(created.user.id);
+        if (cleanupError) console.error("session cleanup failed:", cleanupError.message);
+        console.error("registration session issuance failed:", sessionError instanceof Error ? sessionError.message : "unknown");
+        return json({ error: "Sesi pendaftaran tidak dapat dibuat. Silakan ulangi pendaftaran." }, 500);
+      }
     }
 
     if (action === "login") {
@@ -84,15 +92,22 @@ Deno.serve(async req => {
       }
       const submittedHash = await sha256(recoveryCode);
       if (!safeEqual(submittedHash, credential.recovery_hash)) {
-        const attempts = Number(credential.failed_attempts || 0) + 1;
-        await admin.from("student_access_credentials").update({
-          failed_attempts: attempts >= 8 ? 0 : attempts,
-          locked_until: attempts >= 8 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null,
-        }).eq("user_id", credential.user_id);
+        const { data: locked, error: attemptError } = await admin.rpc("record_student_access_failure", {
+          p_user_id: credential.user_id,
+        });
+        if (attemptError) {
+          console.error("failed-attempt update failed:", attemptError.message);
+          return json({ error: "Percobaan masuk belum dapat diproses. Silakan coba kembali." }, 500);
+        }
+        if (locked) return json({ error: "Terlalu banyak percobaan. Coba kembali setelah 15 menit." }, 429);
         return json({ error: "Email, kode kelas, atau kode pemulihan tidak cocok." }, 401);
       }
-      await admin.from("student_access_credentials").update({ failed_attempts: 0, locked_until: null })
-        .eq("user_id", credential.user_id);
+      const { error: resetError } = await admin.from("student_access_credentials")
+        .update({ failed_attempts: 0, locked_until: null }).eq("user_id", credential.user_id);
+      if (resetError) {
+        console.error("failed-attempt reset failed:", resetError.message);
+        return json({ error: "Akun belum dapat diproses. Silakan coba kembali." }, 500);
+      }
       return json({ token_hash: await issueSession(email) });
     }
     return json({ error: "Tindakan tidak dikenal." }, 400);
