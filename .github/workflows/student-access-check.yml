@@ -31,7 +31,7 @@ jobs:
 
 
       - name: Run student access unit tests
-        run: deno test --no-check supabase/functions/student-access/logic.test.ts
+        run: deno test --no-lock supabase/functions/student-access/logic.test.ts
 
       - name: Confirm initial rollout is limited to VII A
         run: |
