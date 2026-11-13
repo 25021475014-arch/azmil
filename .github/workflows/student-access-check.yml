@@ -1,0 +1,63 @@
+name: Student access checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/student-access/**"
+      - "supabase/config.toml"
+      - "index.html"
+      - ".github/workflows/student-access-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check student access Edge Function
+        run: deno check --no-lock supabase/functions/student-access/index.ts
+
+      - name: Run student access unit tests
+        run: deno test --no-lock supabase/functions/student-access/logic.test.ts
+
+      - name: Check browser JavaScript syntax and student login flow
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const html = readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+            .map(match => match[1]).filter(script => script.trim());
+          if (scripts.length !== 1) throw new Error('Expected one inline application script.');
+          writeFileSync('/tmp/bengkel-prosedur.js', scripts[0]);
+          for (const required of ["id:'student-name'", "id:'student-class-password'", "class_password:classPassword", "type:'email'"]) {
+            if (!scripts[0].includes(required)) throw new Error('Missing expected student login element or auth flow: ' + required);
+          }
+          for (const forbidden of ['student-recovery-code', 'create_student', 'reset_student_code', 'new-student-email']) {
+            if (scripts[0].includes(forbidden)) throw new Error('Obsolete recovery-code flow remains: ' + forbidden);
+          }
+          NODE
+          node --check /tmp/bengkel-prosedur.js
+
+      - name: Confirm class password is server-side only
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const fn = readFileSync('supabase/functions/student-access/index.ts', 'utf8');
+          const html = readFileSync('index.html', 'utf8');
+          if (!fn.includes('CLASS_PASSWORD_VIIA')) throw new Error('Server-side class password secret missing.');
+          if (html.includes('class_password:classPassword') && html.includes('CLASS_PASSWORD_VIIA')) {
+            throw new Error('Class password secret must not be referenced by browser code.');
+          }
+          console.log('Class password is read only from the Edge Function secret.');
+          NODE
