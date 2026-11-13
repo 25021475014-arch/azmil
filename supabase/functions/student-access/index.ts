@@ -41,9 +41,9 @@ Deno.serve(async req => {
     const body = await req.json();
     const action = String(body.action || "");
     const email = normalizeEmail(body.email);
-    const classCode = String(body.class_code || "").trim().toUpperCase().replace(/\s+/g, "");
+    const classCode = normalizeClassCode(body.class_code);
     const className = CLASS_CODES[classCode];
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Alamat email tidak valid." }, 400);
+    if (!isValidEmail(email)) return json({ error: "Alamat email tidak valid." }, 400);
     if (!className) return json({ error: "Kode kelas tidak terdaftar." }, 400);
 
     if (action === "register") {
