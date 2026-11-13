@@ -1,6 +1,6 @@
 import {
-  CLASS_CODES, formatRecoveryCode, isValidEmail, isValidRecoveryCode,
-  isValidStudentName, normalizeClassCode, normalizeEmail, safeEqual,
+  CLASS_CODES, isValidEmail, isValidStudentName, normalizeClassCode,
+  normalizeEmail, normalizeStudentName, safeEqual,
 } from "./logic.ts";
 
 Deno.test("rollout accepts VII A only", () => {
@@ -19,27 +19,18 @@ Deno.test("email normalization and validation", () => {
   }
 });
 
-Deno.test("student name boundaries", () => {
+Deno.test("student name validation and normalization", () => {
   if (!isValidStudentName("AB")) throw new Error("minimum valid name rejected");
   if (!isValidStudentName("A".repeat(100))) throw new Error("maximum valid name rejected");
   if (isValidStudentName("A")) throw new Error("one-character name accepted");
   if (isValidStudentName("A".repeat(101))) throw new Error("overlong name accepted");
-});
-
-Deno.test("recovery code format and normalization", () => {
-  const code = formatRecoveryCode("A1B2C3D4E5F60718293A4B5C6D7E8F90123456789ABCDEF0");
-  if (code !== "A1B2C3D4-E5F60718-293A4B5C-6D7E8F90-12345678-9ABCDEF0") {
-    throw new Error("recovery code grouping failed");
-  }
-  if (!isValidRecoveryCode(code)) throw new Error("generated code rejected");
-  if (!isValidRecoveryCode(code.toLowerCase().toUpperCase())) throw new Error("uppercase code rejected");
-  for (const invalid of ["", "ABC", "A".repeat(48), "GGGGGGGG-EEEEEEEE-FFFFFFFF"]) {
-    if (isValidRecoveryCode(invalid)) throw new Error(`invalid recovery code accepted: ${invalid}`);
+  if (normalizeStudentName("  Siswa   Kelas VII A ") !== "siswa kelas vii a") {
+    throw new Error("name normalization failed");
   }
 });
 
-Deno.test("constant-time comparison returns correct equality result", () => {
-  if (!safeEqual("abcdef012345", "abcdef012345")) throw new Error("equal strings differ");
-  if (safeEqual("abcdef012345", "abcdef012346")) throw new Error("different strings match");
+Deno.test("password comparison is exact and case-sensitive", () => {
+  if (!safeEqual("Kelas123", "Kelas123")) throw new Error("equal strings differ");
+  if (safeEqual("Kelas123", "kelas123")) throw new Error("case-sensitive comparison failed");
   if (safeEqual("short", "longer")) throw new Error("different lengths match");
 });
