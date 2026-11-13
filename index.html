@@ -548,7 +548,9 @@ function renderHome(){
     recipeCard()
   );
 
-  const accountBar = h('p',{class:'notice'},'👤 '+(currentUser ? ((users[currentUser.username]?.name)||currentUser.username)+' · '+(users[currentUser.username]?.kelas||'Siswa') : 'Siswa')+' ',h('button',{class:'btn small',type:'button',onClick:logout},'Keluar akun'));
+  const accountName = currentUser?.name || currentUser?.email?.split('@')[0] || 'Siswa';
+  const accountClass = currentUser?.kelas ? ' · ' + currentUser.kelas : '';
+  const accountBar = h('p',{class:'notice'},'👤 ' + accountName + accountClass + ' ',h('button',{class:'btn small',type:'button',onClick:logout},'Keluar akun'));
 
   const grid = h('section',{id:'games'},
     h('h2',{class:'section-title'}, 'Pilih permainan'),
