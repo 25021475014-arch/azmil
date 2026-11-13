@@ -87,7 +87,23 @@ Deno.serve(async req => {
       }
     }
 
-    const profile = await getStudentProfile(authUser.id);
+    let profile = await getStudentProfile(authUser.id);
+    // The auth.users trigger normally creates this profile. Repair only a missing
+    // profile whose auth metadata matches this VII A student registration.
+    const metadataName = String(authUser.user_metadata?.display_name || "");
+    const metadataClass = String(authUser.user_metadata?.class_code || "");
+    if (!profile &&
+        metadataClass === CLASS_CODES[classCode] &&
+        normalizeStudentName(metadataName) === normalizeStudentName(name)) {
+      const { error: profileError } = await admin.from("profiles").upsert({
+        id: authUser.id,
+        display_name: name,
+        class_code: CLASS_CODES[classCode],
+        role: "student",
+      }, { onConflict: "id" });
+      if (profileError) throw profileError;
+      profile = await getStudentProfile(authUser.id);
+    }
     if (!profile || profile.role !== "student" || profile.class_code !== CLASS_CODES[classCode]) {
       return json({ error: "Email ini tidak terdaftar sebagai akun siswa kelas VII A." }, 403);
     }
