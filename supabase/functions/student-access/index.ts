@@ -84,6 +84,21 @@ Deno.serve(async req => {
       return json({ recovery_code: recoveryCode });
     }
 
+    if (action === "reset_student_code") {
+      const teacher = await requireTeacher(req);
+      if (!teacher) return json({ error: "Akses hanya diberikan kepada akun guru." }, 403);
+      const { data: credential, error: lookupError } = await admin.from("student_access_credentials")
+        .select("user_id,email,class_code")
+        .eq("email", email).eq("class_code", classCode).maybeSingle();
+      if (lookupError || !credential) return json({ error: "Akun siswa tidak ditemukan." }, 404);
+      const recoveryCode = formatRecoveryCode(randomHex(24));
+      const recoveryHash = await sha256(recoveryCode);
+      const { error: updateError } = await admin.from("student_access_credentials")
+        .update({ recovery_hash: recoveryHash }).eq("user_id", credential.user_id);
+      if (updateError) return json({ error: "Kode pemulihan belum dapat diperbarui." }, 500);
+      return json({ recovery_code: recoveryCode });
+    }
+
     if (action === "login") {
       const recoveryCode = String(body.recovery_code || "").trim().toUpperCase();
       if (!isValidRecoveryCode(recoveryCode)) return json({ error: "Email atau kode pemulihan tidak cocok." }, 401);
