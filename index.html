@@ -424,12 +424,12 @@ function recipeCard(){
 function renderLogin(){
   const student = h('section',{class:'auth-card'},
     h('h2',{},'👩‍🎓 Akun Siswa'),
-    h('p',{},'Masuk menggunakan email, kode kelas, dan kode pemulihan yang diberikan guru.'),
+    h('p',{},'Masuk menggunakan email, nama lengkap, dan kata sandi kelas VII A.'),
     h('div',{class:'field'},h('label',{},'Email siswa'),h('input',{id:'student-email',type:'email',autocomplete:'email',placeholder:'nama@email.com'})),
-    h('div',{class:'field'},h('label',{},'Kode kelas'),h('input',{id:'student-class-code',autocomplete:'off',value:'VIIA2026',readonly:true})),
-    h('div',{class:'field'},h('label',{},'Kode pemulihan pribadi'),h('input',{id:'student-recovery-code',autocomplete:'off',placeholder:'Masukkan kode dari guru'})),
+    h('div',{class:'field'},h('label',{},'Nama lengkap'),h('input',{id:'student-name',type:'text',autocomplete:'name',placeholder:'Nama sesuai identitas siswa'})),
+    h('div',{class:'field'},h('label',{},'Kata sandi kelas'),h('input',{id:'student-class-password',type:'password',autocomplete:'off',placeholder:'Masukkan kata sandi kelas'})),
     h('button',{class:'btn primary',type:'button',onClick:studentLogin},'Masuk sebagai siswa'),
-    h('p',{class:'small'},'Akun siswa dibuat oleh guru setelah identitas diperiksa. Kode pemulihan hanya diberikan kepada siswa yang bersangkutan.')
+    h('p',{class:'small'},'Gunakan email yang sama setiap kali masuk agar riwayat permainan dan nilai tetap tersimpan.')
   );
   const teacher = h('section',{class:'auth-card'},
     h('h2',{},'👩‍🏫 Akun Guru'),
@@ -437,7 +437,7 @@ function renderLogin(){
     h('div',{class:'field'},h('label',{},'Email guru'),h('input',{id:'teacher-email',type:'email',value:'25021475014@mhs.unesa.ac.id',autocomplete:'username'})),
     h('div',{class:'field'},h('label',{},'Kata sandi'),h('input',{id:'teacher-pass',type:'password',autocomplete:'current-password',placeholder:'Kata sandi akun Supabase'})),
     h('button',{class:'btn primary',type:'button',onClick:teacherLogin},'Masuk sebagai guru'),
-    h('p',{class:'small'},'Gunakan kata sandi yang Anda buat sendiri saat membuat akun guru di Supabase.')
+    h('p',{class:'small'},'Gunakan kata sandi akun guru yang telah terdaftar di Supabase.')
   );
   stage.replaceChildren(
     h('section',{class:'hero'},h('div',{},h('h1',{},'🛠️ Bengkel Prosedur'),h('p',{class:'lead'},'Media permainan kata aksi dan konjungsi. Silakan masuk sesuai peran.'))),
@@ -446,29 +446,23 @@ function renderLogin(){
 }
 async function studentLogin(){
   const email=$('#student-email').value.trim().toLowerCase();
-  const code=$('#student-class-code').value.trim().toUpperCase().replace(/\s+/g,'');
-  const recoveryCode=$('#student-recovery-code').value.trim().toUpperCase();
+  const name=$('#student-name').value.trim();
+  const classPassword=$('#student-class-password').value;
   if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Masukkan alamat email yang valid.');return;}
-  if(!recoveryCode){alert('Masukkan kode pemulihan dari guru.');return;}
+  if(name.length<2 || name.length>100){alert('Masukkan nama lengkap (2–100 karakter).');return;}
+  if(!classPassword){alert('Masukkan kata sandi kelas.');return;}
   const {data:authData,error:authError}=await supabase.functions.invoke('student-access',{
-    body:{action:'login',email,class_code:code,recovery_code:recoveryCode}
+    body:{action:'login',email,name,class_password:classPassword,class_code:'VIIA2026'}
   });
-  if(authError || !authData?.token_hash){alert('Email atau kode pemulihan tidak cocok. Periksa kembali data yang diberikan guru.');return;}
+  if(authError || !authData?.token_hash){alert(authData?.error || 'Email, nama, atau kata sandi kelas tidak sesuai. Periksa kembali data yang dimasukkan.');return;}
   const {data:sessionData,error:sessionError}=await supabase.auth.verifyOtp({token_hash:authData.token_hash,type:'email'});
-  if(sessionError || !sessionData?.user){alert('Identitas diterima, tetapi sesi belum dapat dibuat. Silakan coba kembali.');return;}
+  if(sessionError || !sessionData?.user){alert('Data diterima, tetapi sesi belum dapat dibuat. Silakan coba kembali.');return;}
   const {data:profile,error:profileError}=await supabase.from('profiles').select('id,display_name,class_code,role').eq('id',sessionData.user.id).single();
   if(profileError || !profile || profile.role!=='student'){
     await supabase.auth.signOut();alert('Profil siswa belum dapat dimuat. Hubungi guru.');return;
   }
   currentUser={id:sessionData.user.id,email:sessionData.user.email,role:'student',name:profile.display_name,kelas:profile.class_code};
   await loadBest();go(renderHome);
-}
-function GenCopyRecovery(value){
-  if(navigator.clipboard?.writeText){
-    navigator.clipboard.writeText(value).then(()=>alert('Kode pemulihan berhasil disalin.')).catch(()=>alert('Salin kode secara manual: '+value));
-  } else {
-    alert('Salin kode pemulihan ini dan simpan di tempat aman: '+value);
-  }
 }
 async function teacherLogin(){
   const email=$('#teacher-email').value.trim().toLowerCase();
@@ -487,39 +481,6 @@ async function teacherLogin(){
 async function logout(){
   await supabase.auth.signOut();
   currentUser=null;best={};go(renderLogin);
-}
-async function createStudent(){
-  if(!currentUser || currentUser.role!=='teacher'){alert('Hanya guru yang dapat membuat akun siswa.');return;}
-  const name=$('#new-student-name').value.trim(), email=$('#new-student-email').value.trim().toLowerCase();
-  if(name.length<2 || name.length>100){alert('Nama siswa harus terdiri dari 2–100 karakter.');return;}
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Masukkan email siswa yang valid.');return;}
-  const {data,error}=await supabase.functions.invoke('student-access',{body:{action:'create_student',name,email,class_code:'VIIA2026'}});
-  if(error || !data?.recovery_code){alert('Akun siswa belum dapat dibuat. Pastikan akun guru memiliki hak akses guru.');return;}
-  stage.replaceChildren(h('section',{class:'auth-card'},
-    h('h2',{},'Akun siswa berhasil dibuat'),
-    h('p',{},'Berikan kode pemulihan ini langsung kepada siswa. Kode hanya ditampilkan satu kali dan tidak dapat dilihat kembali oleh guru.'),
-    h('p',{class:'notice','aria-label':'Kode pemulihan'},data.recovery_code),
-    h('div',{class:'actions'},
-      h('button',{class:'btn',type:'button',onClick:()=>GenCopyRecovery(data.recovery_code)},'Salin kode'),
-      h('button',{class:'btn primary',type:'button',onClick:renderTeacher},'Kembali ke dasbor guru')),
-    h('p',{class:'small'},'Pastikan nama dan email sesuai dengan daftar siswa sebelum kode diberikan.')
-  ));
-}
-async function resetStudentCode(){
-  if(!currentUser || currentUser.role!=='teacher'){alert('Hanya guru yang dapat mereset kode siswa.');return;}
-  const email=$('#reset-student-email').value.trim().toLowerCase();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Masukkan email siswa yang valid.');return;}
-  if(!confirm('Pastikan identitas siswa sudah diperiksa. Kode lama akan langsung tidak berlaku. Lanjutkan?')) return;
-  const {data,error}=await supabase.functions.invoke('student-access',{body:{action:'reset_student_code',email,class_code:'VIIA2026'}});
-  if(error || !data?.recovery_code){alert('Kode belum dapat direset. Periksa email siswa dan coba kembali.');return;}
-  stage.replaceChildren(h('section',{class:'auth-card'},
-    h('h2',{},'Kode pemulihan diperbarui'),
-    h('p',{},'Kode lama sudah tidak berlaku. Berikan kode baru langsung kepada siswa setelah memeriksa identitasnya.'),
-    h('p',{class:'notice','aria-label':'Kode pemulihan baru'},data.recovery_code),
-    h('div',{class:'actions'},
-      h('button',{class:'btn',type:'button',onClick:()=>GenCopyRecovery(data.recovery_code)},'Salin kode baru'),
-      h('button',{class:'btn primary',type:'button',onClick:renderTeacher},'Kembali ke dasbor guru'))
-  ));
 }
 async function renderTeacher(){
   const [profilesRes,scoresRes]=await Promise.all([
@@ -549,15 +510,6 @@ async function renderTeacher(){
   ));
   stage.replaceChildren(
     h('div',{class:'hud'},h('h2',{class:'hud-title'},'📊 Dasbor Guru'),h('button',{class:'btn small',type:'button',onClick:logout},'Keluar')),
-    h('section',{class:'teacher-panel'},
-      h('h2',{},'Buat akun siswa'),
-      h('p',{},'Guru membuat akun setelah memeriksa identitas siswa. Email hanya menjadi identitas akun, bukan bukti kepemilikan. Kode pemulihan ditampilkan satu kali untuk diberikan langsung kepada siswa.'),
-      h('div',{class:'field'},h('label',{},'Nama lengkap siswa'),h('input',{id:'new-student-name',autocomplete:'off',placeholder:'Nama sesuai daftar kelas'})),
-      h('div',{class:'field'},h('label',{},'Email siswa'),h('input',{id:'new-student-email',type:'email',autocomplete:'off',placeholder:'nama@email.com'})),
-      h('button',{class:'btn primary',type:'button',onClick:createStudent},'Buat akun dan kode pemulihan'),
-      h('div',{class:'field'},h('label',{},'Email siswa untuk reset kode'),h('input',{id:'reset-student-email',type:'email',autocomplete:'off',placeholder:'nama@email.com'})),
-      h('button',{class:'btn',type:'button',onClick:resetStudentCode},'Buat kode pemulihan baru')
-    ),
     h('section',{class:'teacher-panel'},h('h2',{},'Rekap hasil permainan'),h('p',{},'Setiap permainan memiliki nilai maksimal 100. Data diambil langsung dari Supabase.'),table,
       h('div',{class:'actions'},h('button',{class:'btn',type:'button',onClick:()=>{
         const csv=[['Nama','Kelas',...GAMES.map(g=>g.title),'Rata-rata','Terakhir bermain'],...students.map(u=>{
