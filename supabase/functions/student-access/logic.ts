@@ -5,11 +5,11 @@ export function normalizeEmail(value: unknown): string {
 }
 
 export function normalizeClassCode(value: unknown): string {
-  return String(value || "").trim().toUpperCase().replace(/\\s+/g, "");
+  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
 export function isValidEmail(value: string): boolean {
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 export function isValidStudentName(value: string): boolean {
