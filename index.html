@@ -712,7 +712,7 @@ function playKonj(){
     });
     card.append(
       h('p',{class:'prompt'}, 'Pilih konjungsi yang paling tepat untuk bagian kosong.'),
-      lines,
+      ...lines,
       h('div',{class:'opts'}, optBtns),
       fb
     );
