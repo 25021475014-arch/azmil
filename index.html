@@ -452,7 +452,7 @@ async function studentLogin(mode){
   const email=$('#student-email').value.trim().toLowerCase();
   const code=$('#student-class-code').value.trim().toUpperCase().replace(/\s+/g,'');
   const recoveryCode=$('#student-recovery-code').value.trim();
-  if(!email || !/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)){alert('Masukkan alamat email yang valid.');return;}
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert('Masukkan alamat email yang valid.');return;}
   if(!code){alert('Masukkan kode kelas dari guru.');return;}
   if(mode==='register' && !name){alert('Masukkan nama lengkap untuk pendaftaran.');return;}
   if(mode==='login' && !recoveryCode){alert('Masukkan kode pemulihan pribadi.');return;}
