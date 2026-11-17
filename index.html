@@ -483,7 +483,7 @@ function renderQuestionnaire(){
         h('section',{class:'result pop'},
           h('h2',{},'Angket berhasil dikirim'),
           h('p',{},'Terima kasih. Jawaban Anda sudah tersimpan dan dapat dilihat oleh guru.'),
-          h('div',{class:'response-summary'},'Skor respons: '+Object.keys(payload).filter(k=>/^q\\d+$/.test(k)).reduce((sum,k)=>sum+payload[k],0)+' dari 75'),
+          h('div',{class:'response-summary'},'Skor respons: '+RESPONSE_ITEMS.reduce((sum,_,index)=>sum+payload['q'+(index+1)],0)+' dari 75'),
           h('button',{class:'btn primary',type:'button',onClick:()=>go(renderHome)},'Kembali ke menu utama')
         )
       );
@@ -603,7 +603,7 @@ async function renderTeacher(){
   (responsesRes.data||[]).forEach(row=>{responseByStudent[row.student_id]=row;});
   const responseRows=students.map(student=>{
     const r=responseByStudent[student.id];
-    if(!r)return h('tr',{},h('td',{},student.display_name||'-'),h('td',{},student.class_code||'-'),h('td',{colspan:'4'},'Belum mengisi'));
+    if(!r)return h('tr',{},h('td',{},student.display_name||'-'),h('td',{},student.class_code||'-'),h('td',{colspan:'5'},'Belum mengisi'));
     const details=h('details',{},h('summary',{},'Lihat jawaban'));
     const answerList=h('ol',{});
     RESPONSE_ITEMS.forEach((item,index)=>{
