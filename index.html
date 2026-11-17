@@ -267,7 +267,7 @@ const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-mot
 const SUPABASE_URL = 'https://xpnbpiqfmnvxwnhjbytn.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_AM8BZJyyRnK2C2KLvlcxTw_8Jp_0n_f';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-let currentUser = null, best = {}, hasPlayed = false, responseSubmitted = false;
+let currentUser = null, best = {}, completedGames = {}, gameLastPlayed = {}, allGamesCompleted = false, responseSubmitted = false;
 function loadBestFromRows(rows){
   best = {};
   for (const g of GAMES) best[g.id] = 0;
@@ -278,26 +278,44 @@ function loadBestFromRows(rows){
 async function loadBest(){
   if (!currentUser || currentUser.role !== 'student') { best = {}; return; }
   const {data,error} = await supabase.from('bengkel_game_scores')
-    .select('game_id,best_score,last_played_at').eq('student_id', currentUser.id);
+    .select('game_id,best_score,last_played_at,completed_at').eq('student_id', currentUser.id);
   if (error) { console.error(error); alert('Nilai belum dapat dimuat dari server: ' + error.message); }
   loadBestFromRows(data || []);
-  hasPlayed = (data || []).some(row => Boolean(row.last_played_at));
+  completedGames = {};
+  gameLastPlayed = {};
+  (data || []).forEach(row => {
+    if (row.completed_at) completedGames[row.game_id] = row.completed_at;
+    if (row.last_played_at) gameLastPlayed[row.game_id] = row.last_played_at;
+  });
+  allGamesCompleted = GAMES.every(g => Boolean(completedGames[g.id]));
   const {data:response,error:responseError}=await supabase.from('bengkel_student_responses').select('student_id').eq('student_id',currentUser.id).maybeSingle();
   if(responseError){console.error(responseError);alert('Status angket belum dapat diperiksa: '+responseError.message);}
   responseSubmitted=Boolean(response);
 }
-async function saveBest(){
-  if (!currentUser || currentUser.role !== 'student') return;
+async function saveBest(completedGameId){
+  if (!currentUser || currentUser.role !== 'student') return false;
+  const now = new Date().toISOString();
+  const nextCompleted = {...completedGames,[completedGameId]:now};
+  const nextLastPlayed = {...gameLastPlayed,[completedGameId]:now};
   const rows = GAMES.map(g => ({
     student_id: currentUser.id,
     game_id: g.id,
     best_score: Math.max(0, Math.min(100, Number(best[g.id] || 0))),
-    last_played_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    last_played_at: nextLastPlayed[g.id] || null,
+    completed_at: nextCompleted[g.id] || null,
+    updated_at: now
   }));
   const {error} = await supabase.from('bengkel_game_scores')
     .upsert(rows, {onConflict:'student_id,game_id'});
-  if (error) { console.error(error); alert('Nilai belum berhasil disimpan ke server: ' + error.message); }
+  if (error) {
+    console.error(error);
+    alert('Nilai belum berhasil disimpan ke server: ' + error.message);
+    return false;
+  }
+  completedGames = nextCompleted;
+  gameLastPlayed = nextLastPlayed;
+  allGamesCompleted = GAMES.every(g => Boolean(completedGames[g.id]));
+  return true;
 }
 /* ---------- data ---------- */
 const AKSI = [
@@ -437,6 +455,7 @@ async function saveStudentResponse(payload){
   return true;
 }
 function renderQuestionnaire(){
+  if(!allGamesCompleted){go(renderHome);return;}
   if(responseSubmitted){go(renderHome);return;}
   if(!currentUser || currentUser.role!=='student'){go(renderLogin);return;}
   const form=h('form',{class:'questionnaire'});
@@ -569,7 +588,7 @@ async function teacherLogin(){
 }
 async function logout(){
   await supabase.auth.signOut();
-  currentUser=null;best={};hasPlayed=false;responseSubmitted=false;go(renderLogin);
+  currentUser=null;best={};completedGames={};gameLastPlayed={};allGamesCompleted=false;responseSubmitted=false;go(renderLogin);
 }
 async function renderTeacher(){
   const [profilesRes,scoresRes,responsesRes]=await Promise.all([
@@ -651,7 +670,7 @@ async function renderTeacher(){
 }
 
 function renderHome(){
-  if(hasPlayed && !responseSubmitted){renderQuestionnaire();return;}
+  if(allGamesCompleted && !responseSubmitted){renderQuestionnaire();return;}
   const {t,m} = totals(); const r = t/m;
   const hero = h('section',{class:'hero'},
     h('div',{},
@@ -718,12 +737,11 @@ function hud(title, unit, i, n, prog, score, streak){
   );
 }
 
-function finish(id, score, total, right, label, again){
+async function finish(id, score, total, right, label, again){
   const g = gameById(id), max = 100; score = Math.max(0, Math.min(100, Math.round(score)));
   const prev = best[id] || 0, isNew = score > prev;
-  hasPlayed = true;
   if (isNew) best[id] = score;
-  if (currentUser && currentUser.role === 'student') saveBest();
+  if (currentUser && currentUser.role === 'student') await saveBest(id);
   const ratio = score / max;
   const stars = ratio >= .85 ? 3 : ratio >= .6 ? 2 : ratio >= .3 ? 1 : 0;
   const msgs = [
@@ -740,8 +758,9 @@ function finish(id, score, total, right, label, again){
       h('p',{}, label + ': ' + right + ' dari ' + total + '.'),
       isNew && score > 0 ? h('p',{}, h('span',{class:'badge'}, 'Skor terbaik baru!')) : null,
       h('p',{}, msgs[stars]),
+      !allGamesCompleted && !responseSubmitted ? h('p',{class:'notice'},'Permainan selesai: '+GAMES.filter(game=>completedGames[game.id]).length+' dari '+GAMES.length+'. Selesaikan semua permainan untuk membuka angket.') : null,
       h('div',{class:'actions'},
-        h('button',{class:'btn primary',type:'button',onClick:()=>go(renderQuestionnaire)}, responseSubmitted ? 'Kembali ke menu utama' : 'Lanjut isi angket')))
+        h('button',{class:'btn primary',type:'button',onClick:()=>go(allGamesCompleted && !responseSubmitted ? renderQuestionnaire : renderHome)}, allGamesCompleted && !responseSubmitted ? 'Lanjut isi angket' : 'Kembali ke menu utama')))
   );
   updatePts();
   window.scrollTo(0,0);
