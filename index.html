@@ -131,6 +131,20 @@ footer{margin-top:36px;color:var(--muted);font-size:.9rem}
 .score-table{width:100%;border-collapse:collapse;background:var(--surface)}
 .score-table th,.score-table td{padding:9px;border:1px solid var(--line);text-align:left}
 .score-table th{background:var(--surface-2)}
+
+/* angket respons peserta didik */
+.questionnaire{background:var(--surface);border:3px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 6px 0 var(--shadow);margin:18px 0}
+.question-row{padding:14px 0;border-bottom:1px solid var(--line)}
+.question-row:last-child{border-bottom:0}
+.question-text{font-weight:800;margin-bottom:10px}
+.likert-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.likert-option{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--surface-2);border:2px solid var(--line);border-radius:10px;padding:8px 3px;font-size:.82rem}
+.likert-option input{width:19px;height:19px;accent-color:var(--konj)}
+.likert-option span{font-weight:800}
+.questionnaire textarea{font:inherit;width:100%;min-height:76px;padding:10px;border:2px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);resize:vertical}
+.response-summary{background:var(--surface-2);border:2px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
+@media(max-width:560px){.likert-options{gap:4px}.likert-option{font-size:.7rem;padding:7px 1px}}
+
 /* game screens */
 .hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:10px}
 .hud-title{font-size:1.4rem;margin:0;flex:1 1 auto}
@@ -253,7 +267,7 @@ const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-mot
 const SUPABASE_URL = 'https://xpnbpiqfmnvxwnhjbytn.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_AM8BZJyyRnK2C2KLvlcxTw_8Jp_0n_f';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-let currentUser = null, best = {};
+let currentUser = null, best = {}, hasPlayed = false, responseSubmitted = false;
 function loadBestFromRows(rows){
   best = {};
   for (const g of GAMES) best[g.id] = 0;
@@ -264,9 +278,13 @@ function loadBestFromRows(rows){
 async function loadBest(){
   if (!currentUser || currentUser.role !== 'student') { best = {}; return; }
   const {data,error} = await supabase.from('bengkel_game_scores')
-    .select('game_id,best_score').eq('student_id', currentUser.id);
+    .select('game_id,best_score,last_played_at').eq('student_id', currentUser.id);
   if (error) { console.error(error); alert('Nilai belum dapat dimuat dari server: ' + error.message); }
   loadBestFromRows(data || []);
+  hasPlayed = (data || []).some(row => Boolean(row.last_played_at));
+  const {data:response,error:responseError}=await supabase.from('bengkel_student_responses').select('student_id').eq('student_id',currentUser.id).maybeSingle();
+  if(responseError){console.error(responseError);alert('Status angket belum dapat diperiksa: '+responseError.message);}
+  responseSubmitted=Boolean(response);
 }
 async function saveBest(){
   if (!currentUser || currentUser.role !== 'student') return;
@@ -404,6 +422,77 @@ function go(fn){
 }
 $('#brand').addEventListener('click', () => go(renderHome));
 
+
+const RESPONSE_ITEMS = ["Saya tertarik menggunakan media pembelajaran ini.","Tampilan media menarik.","Warna dan gambar dalam media menarik.","Petunjuk penggunaan media mudah dipahami.","Media mudah digunakan.","Materi disajikan secara sistematis.","Bahasa yang digunakan mudah dipahami.","Contoh membantu saya memahami materi.","Gambar dan ilustrasi membantu pembelajaran.","Latihan membantu saya memahami materi.","Media membuat pembelajaran lebih menarik.","Media membantu saya belajar secara mandiri.","Saya lebih aktif ketika menggunakan media.","Media meningkatkan motivasi belajar saya.","Saya ingin menggunakan media ini kembali."];
+const RESPONSE_OPTIONS = [{label:'SS',value:5,full:'Sangat Setuju'},{label:'S',value:4,full:'Setuju'},{label:'N',value:3,full:'Netral'},{label:'TS',value:2,full:'Tidak Setuju'},{label:'STS',value:1,full:'Sangat Tidak Setuju'}];
+
+async function saveStudentResponse(payload){
+  const {error}=await supabase.from('bengkel_student_responses').insert(payload);
+  if(error){
+    console.error(error);
+    alert(error.code==='23505'?'Angket ini sudah pernah dikirim.':'Jawaban angket belum berhasil disimpan: '+error.message);
+    return false;
+  }
+  responseSubmitted=true;
+  return true;
+}
+function renderQuestionnaire(){
+  if(responseSubmitted){go(renderHome);return;}
+  if(!currentUser || currentUser.role!=='student'){go(renderLogin);return;}
+  const form=h('form',{class:'questionnaire'});
+  form.append(
+    h('h2',{},'Angket Respons Peserta Didik'),
+    h('p',{},'Isi angket setelah menggunakan media pembelajaran. Pilih satu jawaban untuk setiap pernyataan. Semua pernyataan wajib dijawab.'),
+    h('div',{class:'notice'},'Nama: '+currentUser.name+' · Kelas: '+(currentUser.kelas||'VII A')+' · Tanggal: '+new Date().toLocaleDateString('id-ID')),
+    h('p',{class:'small'},'SS = Sangat Setuju (5) · S = Setuju (4) · N = Netral (3) · TS = Tidak Setuju (2) · STS = Sangat Tidak Setuju (1)')
+  );
+  RESPONSE_ITEMS.forEach((statement,index)=>{
+    const name='q'+(index+1);
+    const options=h('div',{class:'likert-options'});
+    RESPONSE_OPTIONS.forEach(opt=>{
+      const input=h('input',{type:'radio',name,value:String(opt.value),required:true,'aria-label':opt.full});
+      options.append(h('label',{class:'likert-option'},input,h('span',{},opt.label),h('small',{},String(opt.value))));
+    });
+    form.append(h('div',{class:'question-row'},h('p',{class:'question-text'},(index+1)+'. '+statement),options));
+  });
+  const openItems=[
+    'Apa kelebihan media pembelajaran ini?',
+    'Apa kekurangan media pembelajaran ini?',
+    'Apa saran Anda untuk perbaikan media?'
+  ];
+  openItems.forEach((prompt,index)=>{
+    form.append(h('div',{class:'field'},h('label',{},(index+1)+'. '+prompt),h('textarea',{name:'response_'+(index+1),rows:'3',maxlength:'2000',placeholder:'Tuliskan jawaban Anda...'})));
+  });
+  const submit=h('button',{class:'btn primary',type:'submit'},'Kirim angket');
+  form.append(h('div',{class:'actions'},submit));
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    if(!form.reportValidity())return;
+    submit.disabled=true;submit.textContent='Menyimpan...';
+    const payload={student_id:currentUser.id};
+    RESPONSE_ITEMS.forEach((_,index)=>{
+      const selected=form.querySelector('input[name="q'+(index+1)+'"]:checked');
+      payload['q'+(index+1)]=Number(selected.value);
+    });
+    openItems.forEach((_,index)=>{
+      payload['response_'+(index+1)]=form.querySelector('[name="response_'+(index+1)+'"]').value.trim();
+    });
+    const saved=await saveStudentResponse(payload);
+    if(saved){
+      stage.replaceChildren(
+        h('section',{class:'result pop'},
+          h('h2',{},'Angket berhasil dikirim'),
+          h('p',{},'Terima kasih. Jawaban Anda sudah tersimpan dan dapat dilihat oleh guru.'),
+          h('div',{class:'response-summary'},'Skor respons: '+RESPONSE_ITEMS.reduce((sum,_,index)=>sum+payload['q'+(index+1)],0)+' dari 75'),
+          h('button',{class:'btn primary',type:'button',onClick:()=>go(renderHome)},'Kembali ke menu utama')
+        )
+      );
+    }else{submit.disabled=false;submit.textContent='Kirim angket';}
+  });
+  stage.replaceChildren(h('div',{class:'hud'},h('h2',{class:'hud-title'},'Angket Respons Peserta Didik')),form);
+  updatePts();window.scrollTo(0,0);
+}
+
 /* ---------- beranda ---------- */
 function recipeCard(){
   const K = t => h('span',{class:'chip konj'}, t);
@@ -480,15 +569,16 @@ async function teacherLogin(){
 }
 async function logout(){
   await supabase.auth.signOut();
-  currentUser=null;best={};go(renderLogin);
+  currentUser=null;best={};hasPlayed=false;responseSubmitted=false;go(renderLogin);
 }
 async function renderTeacher(){
-  const [profilesRes,scoresRes]=await Promise.all([
+  const [profilesRes,scoresRes,responsesRes]=await Promise.all([
     supabase.from('profiles').select('id,display_name,class_code').eq('role','student').order('display_name'),
-    supabase.from('bengkel_game_scores').select('student_id,game_id,best_score,last_played_at')
+    supabase.from('bengkel_game_scores').select('student_id,game_id,best_score,last_played_at'),
+    supabase.from('bengkel_student_responses').select('*').order('submitted_at',{ascending:false})
   ]);
-  if(profilesRes.error || scoresRes.error){
-    alert('Rekap belum dapat dimuat: '+(profilesRes.error?.message || scoresRes.error?.message));
+  if(profilesRes.error || scoresRes.error || responsesRes.error){
+    alert('Rekap belum dapat dimuat: '+(profilesRes.error?.message || scoresRes.error?.message || responsesRes.error?.message));
     return;
   }
   const scoresByStudent={};
@@ -508,6 +598,41 @@ async function renderTeacher(){
     h('thead',{},h('tr',{},...['Nama siswa','Kelas',...GAMES.map(g=>g.title),'Rata-rata','Terakhir bermain'].map(x=>h('th',{},x)))),
     h('tbody',{},...(rows.length?rows:[h('tr',{},h('td',{colspan:'9'},'Belum ada data siswa.'))]))
   ));
+
+  const responseByStudent={};
+  (responsesRes.data||[]).forEach(row=>{responseByStudent[row.student_id]=row;});
+  const responseRows=students.map(student=>{
+    const r=responseByStudent[student.id];
+    if(!r)return h('tr',{},h('td',{},student.display_name||'-'),h('td',{},student.class_code||'-'),h('td',{colspan:'5'},'Belum mengisi'));
+    const details=h('details',{},h('summary',{},'Lihat jawaban'));
+    const answerList=h('ol',{});
+    RESPONSE_ITEMS.forEach((item,index)=>{
+      const value=Number(r['q'+(index+1)]);
+      const label=RESPONSE_OPTIONS.find(o=>o.value===value)?.full||'-';
+      answerList.append(h('li',{},item+' — '+label+' ('+value+')'));
+    });
+    details.append(answerList,
+      h('p',{},h('strong',{},'Kelebihan: '),r.response_1||'—'),
+      h('p',{},h('strong',{},'Kekurangan: '),r.response_2||'—'),
+      h('p',{},h('strong',{},'Saran: '),r.response_3||'—'));
+    return h('tr',{},h('td',{},student.display_name||'-'),h('td',{},student.class_code||'-'),h('td',{},r.score_total+' / 75'),h('td',{},Number(r.score_average).toFixed(2)+'/5'),h('td',{},Number(r.score_percentage).toFixed(2)+'%'),h('td',{},new Date(r.submitted_at).toLocaleString('id-ID')),h('td',{},details));
+  });
+  const responseTable=h('div',{class:'table-wrap'},h('table',{class:'score-table'},
+    h('thead',{},h('tr',{},...['Nama siswa','Kelas','Total skor','Rata-rata','Persentase','Waktu kirim','Jawaban'].map(x=>h('th',{},x)))),
+    h('tbody',{},...(responseRows.length?responseRows:[h('tr',{},h('td',{colspan:'7'},'Belum ada siswa.'))]))
+  ));
+  const submitted=(responsesRes.data||[]).length;
+  const meanPercent=submitted?((responsesRes.data||[]).reduce((sum,r)=>sum+Number(r.score_percentage),0)/submitted).toFixed(2):'0,00';
+  const itemRows=RESPONSE_ITEMS.map((statement,index)=>{
+    const key='q'+(index+1);
+    const mean=submitted?((responsesRes.data||[]).reduce((sum,r)=>sum+Number(r[key]),0)/submitted).toFixed(2):'—';
+    return h('tr',{},h('td',{},String(index+1)),h('td',{},statement),h('td',{},mean));
+  });
+  const itemTable=h('div',{class:'table-wrap'},h('table',{class:'score-table'},
+    h('thead',{},h('tr',{},h('th',{},'No.'),h('th',{},'Pernyataan'),h('th',{},'Rata-rata skor'))),
+    h('tbody',{},...itemRows)
+  ));
+
   stage.replaceChildren(
     h('div',{class:'hud'},h('h2',{class:'hud-title'},'📊 Dasbor Guru'),h('button',{class:'btn small',type:'button',onClick:logout},'Keluar')),
     h('section',{class:'teacher-panel'},h('h2',{},'Rekap hasil permainan'),h('p',{},'Setiap permainan memiliki nilai maksimal 100. Data diambil langsung dari Supabase.'),table,
@@ -520,11 +645,13 @@ async function renderTeacher(){
         const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='rekap-nilai-bengkel-prosedur.csv';a.click();URL.revokeObjectURL(a.href);
       }},'Unduh rekap CSV'))
     ),
-    h('p',{class:'notice'},'Data akun dan nilai tersimpan daring. Guru dapat melihat rekap dari perangkat yang berbeda setelah masuk.')
+    h('section',{class:'teacher-panel'},h('h2',{},'Angket Respons Peserta Didik'),h('div',{class:'response-summary'},'Jumlah siswa mengisi: '+submitted+' dari '+students.length+' · Rata-rata persentase respons: '+meanPercent+'%'),h('h3',{},'Rekap respons per siswa'),responseTable,h('h3',{class:'panel-title'},'Rata-rata setiap pernyataan'),itemTable),
+    h('p',{class:'notice'},'Data akun, nilai permainan, dan respons angket tersimpan daring. Guru dapat melihat rekap dari perangkat yang berbeda setelah masuk.')
   );
 }
 
 function renderHome(){
+  if(hasPlayed && !responseSubmitted){renderQuestionnaire();return;}
   const {t,m} = totals(); const r = t/m;
   const hero = h('section',{class:'hero'},
     h('div',{},
@@ -594,6 +721,7 @@ function hud(title, unit, i, n, prog, score, streak){
 function finish(id, score, total, right, label, again){
   const g = gameById(id), max = 100; score = Math.max(0, Math.min(100, Math.round(score)));
   const prev = best[id] || 0, isNew = score > prev;
+  hasPlayed = true;
   if (isNew) best[id] = score;
   if (currentUser && currentUser.role === 'student') saveBest();
   const ratio = score / max;
@@ -613,8 +741,7 @@ function finish(id, score, total, right, label, again){
       isNew && score > 0 ? h('p',{}, h('span',{class:'badge'}, 'Skor terbaik baru!')) : null,
       h('p',{}, msgs[stars]),
       h('div',{class:'actions'},
-        h('button',{class:'btn primary',type:'button',onClick:()=>go(again)}, 'Main lagi'),
-        h('button',{class:'btn',type:'button',onClick:()=>go(renderHome)}, 'Menu utama')))
+        h('button',{class:'btn primary',type:'button',onClick:()=>go(renderQuestionnaire)}, responseSubmitted ? 'Kembali ke menu utama' : 'Lanjut isi angket')))
   );
   updatePts();
   window.scrollTo(0,0);
