@@ -588,7 +588,7 @@ async function teacherLogin(){
 }
 async function logout(){
   await supabase.auth.signOut();
-  currentUser=null;best={};hasPlayed=false;responseSubmitted=false;go(renderLogin);
+  currentUser=null;best={};completedGames={};gameLastPlayed={};allGamesCompleted=false;responseSubmitted=false;go(renderLogin);
 }
 async function renderTeacher(){
   const [profilesRes,scoresRes,responsesRes]=await Promise.all([
