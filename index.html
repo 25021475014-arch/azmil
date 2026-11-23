@@ -297,16 +297,18 @@ async function saveBest(completedGameId){
   const now = new Date().toISOString();
   const nextCompleted = {...completedGames,[completedGameId]:now};
   const nextLastPlayed = {...gameLastPlayed,[completedGameId]:now};
-  const rows = GAMES.map(g => ({
+  const row = {
     student_id: currentUser.id,
-    game_id: g.id,
-    best_score: Math.max(0, Math.min(100, Number(best[g.id] || 0))),
-    last_played_at: nextLastPlayed[g.id] || null,
-    completed_at: nextCompleted[g.id] || null,
+    game_id: completedGameId,
+    best_score: Math.max(0, Math.min(100, Number(best[completedGameId] || 0))),
+    last_played_at: now,
+    completed_at: now,
     updated_at: now
-  }));
+  };
+  // Simpan hanya permainan yang baru diselesaikan.
+  // Baris permainan lain tidak dikirim dengan last_played_at: null.
   const {error} = await supabase.from('bengkel_game_scores')
-    .upsert(rows, {onConflict:'student_id,game_id'});
+    .upsert(row, {onConflict:'student_id,game_id'});
   if (error) {
     console.error(error);
     alert('Nilai belum berhasil disimpan ke server: ' + error.message);
